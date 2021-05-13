@@ -3637,9 +3637,13 @@ IOTHUB_CLIENT_RESULT IoTHubTransport_MQTT_Common_SetOption(TRANSPORT_LL_HANDLE h
             if (OPTION_TWIN_CONTENT_TYPE_MAX_VALUE >= twin_content_type_value)
             {
                 transport_data->twin_content_type = twin_content_type_value;
+                result = IOTHUB_CLIENT_OK;
             }
-
-            result = IOTHUB_CLIENT_OK;
+            else
+            {
+                LogError("%s option specified, but enum value provided is invalid.", OPTION_TWIN_CONTENT_TYPE);
+                result = IOTHUB_CLIENT_INVALID_ARG;
+            }
         }
         else if (strcmp(OPTION_CONNECTION_TIMEOUT, option) == 0)
         {
