@@ -58,7 +58,7 @@ extern "C"
 
     /*
     * @brief Determines the format to send in the username, which will inform IoT Hub what format
-    *        device expects the twin document to use. If this option si not set, the default is
+    *        the device expects the twin document to use. If this option is not set, the default is
     *        JSON. Option must be set before connecting to IoT Hub. Only supported with MQTT.
     */
     static STATIC_VAR_UNUSED const char* OPTION_TWIN_CONTENT_TYPE = "twin_content_type";
@@ -67,6 +67,7 @@ extern "C"
     {
         OPTION_TWIN_CONTENT_TYPE_DEFAULT_JSON = 0,
         OPTION_TWIN_CONTENT_TYPE_CBOR = 1,
+        OPTION_TWIN_CONTENT_TYPE_MAX_VALUE = 1,
     } OPTION_TWIN_CONTENT_TYPE_VALUE;
 
     /*

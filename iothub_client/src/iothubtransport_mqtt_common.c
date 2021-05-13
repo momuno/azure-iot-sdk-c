@@ -2380,7 +2380,7 @@ static STRING_HANDLE buildClientId(const char* device_id, const char* module_id)
 //
 // build the parameter and add to the username.
 //
-static int addUsernameParameter(STRING_HANDLE username, const char* token, const char* value)
+static int addUsernameProperty(STRING_HANDLE username, const char* token, const char* value)
 {
     int result;
 
@@ -2442,7 +2442,7 @@ static int buildConfigForUsernameStep2IfNeeded(PMQTTTRANSPORT_HANDLE_DATA transp
             if (transport_data->twin_content_type != OPTION_TWIN_CONTENT_TYPE_DEFAULT_JSON)
             {
                 // Currently must be CBOR if not JSON
-                result = addUsernameParameter(userName, TWIN_CONTENT_TYPE, TWIN_CONTENT_TYPE_CBOR);
+                result = addUsernameProperty(userName, TWIN_CONTENT_TYPE, TWIN_CONTENT_TYPE_CBOR);
             }
 
             if ((result == 0) && (modelId != NULL))
@@ -2454,7 +2454,7 @@ static int buildConfigForUsernameStep2IfNeeded(PMQTTTRANSPORT_HANDLE_DATA transp
                 }
                 else
                 {
-                    result = addUsernameParameter(userName, DT_MODEL_ID_TOKEN, STRING_c_str(urlEncodedModelId));
+                    result = addUsernameProperty(userName, DT_MODEL_ID_TOKEN, STRING_c_str(urlEncodedModelId));
                 }
             }
         }
@@ -3633,7 +3633,12 @@ IOTHUB_CLIENT_RESULT IoTHubTransport_MQTT_Common_SetOption(TRANSPORT_LL_HANDLE h
         }
         else if (strcmp(OPTION_TWIN_CONTENT_TYPE, option) == 0)
         {
-            transport_data->twin_content_type = *((OPTION_TWIN_CONTENT_TYPE_VALUE*)value);
+            OPTION_TWIN_CONTENT_TYPE_VALUE twin_content_type_value = *((OPTION_TWIN_CONTENT_TYPE_VALUE*)value);
+            if (OPTION_TWIN_CONTENT_TYPE_MAX_VALUE >= twin_content_type_value)
+            {
+                transport_data->twin_content_type = twin_content_type_value;
+            }
+
             result = IOTHUB_CLIENT_OK;
         }
         else if (strcmp(OPTION_CONNECTION_TIMEOUT, option) == 0)
