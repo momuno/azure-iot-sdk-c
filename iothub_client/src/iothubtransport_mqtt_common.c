@@ -95,7 +95,7 @@ static const char* DIAGNOSTIC_CONTEXT_CREATION_TIME_UTC_PROPERTY = "creationtime
 
 static const char DT_MODEL_ID_TOKEN[] = "model-id";
 
-// Content type for twin document and direct methods. Will be used in username.
+// Content type for twin document. Will be used in IoT Hub defined username.
 static const char* TWIN_CONTENT_TYPE = "default-content-type";
 static const char* TWIN_CONTENT_TYPE_CBOR  = "application%2fcbor";
 
