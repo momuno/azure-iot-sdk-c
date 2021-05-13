@@ -2378,7 +2378,7 @@ static STRING_HANDLE buildClientId(const char* device_id, const char* module_id)
 }
 
 //
-// build the parameter and add to the username.
+// build the property and add to the username.
 //
 static int addUsernameProperty(STRING_HANDLE username, const char* token, const char* value)
 {
@@ -3634,7 +3634,7 @@ IOTHUB_CLIENT_RESULT IoTHubTransport_MQTT_Common_SetOption(TRANSPORT_LL_HANDLE h
         else if (strcmp(OPTION_TWIN_CONTENT_TYPE, option) == 0)
         {
             OPTION_TWIN_CONTENT_TYPE_VALUE twin_content_type_value = *((OPTION_TWIN_CONTENT_TYPE_VALUE*)value);
-            if (OPTION_TWIN_CONTENT_TYPE_MAX_VALUE >= twin_content_type_value)
+            if (twin_content_type_value <= OPTION_TWIN_CONTENT_TYPE_MAX_VALUE)
             {
                 transport_data->twin_content_type = twin_content_type_value;
                 result = IOTHUB_CLIENT_OK;
