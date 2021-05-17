@@ -57,9 +57,10 @@ extern "C"
     static STATIC_VAR_UNUSED const char* OPTION_MODEL_ID = "model_id";
 
     /*
-    * @brief Determines the format to send in the username, which will inform IoT Hub what format
-    *        the device expects the twin document to use. If this option is not set, the default is
-    *        JSON. Option must be set before connecting to IoT Hub. Only supported with MQTT.
+    * @brief Determines the format to send in the username field properties, which will inform IoT
+    *        Hub what format the device expects the twin document to use. If this option is not set,
+    *        the default is JSON. Option must be set before connecting to IoT Hub. Only supported
+    *        with MQTT.
     */
     static STATIC_VAR_UNUSED const char* OPTION_TWIN_CONTENT_TYPE = "twin_content_type";
 
