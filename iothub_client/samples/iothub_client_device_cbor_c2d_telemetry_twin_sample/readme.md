@@ -2,7 +2,9 @@
 
 ## Introduction
 
-This [sample](https://github.com/Azure/azure-iot-sdk-c/tree/master/iothub_client/samples/paho_iot_hub_cbor_c2d_telemetry_twin_sample/paho_iot_hub_cbor_c2d_telemetry_twin_sample.c) utilizes the Azure IoT Hub to get the device twin document, send a reported property message, and receive desired property messages all in CBOR. It also shows how to set an application-defined content type (such as CBOR) for either C2D or telemetry messaging, to be used with a coordinated service-side application. After 10 attempts to receive a message, the sample will exit. To run this sample, the MIT licensed [intel/tinycbor](https://github.com/intel/tinycbor) library must be installed. Please see the futher below for instructions. The Embedded C SDK is not dependent on ny particular CBOR library.
+This [sample](https://github.com/Azure/azure-iot-sdk-c/tree/master/iothub_client/samples/paho_iot_hub_cbor_c2d_telemetry_twin_sample/paho_iot_hub_cbor_c2d_telemetry_twin_sample.c) utilizes the Azure IoT Hub to get the device twin document, send a reported property message, and receive desired property messages all in CBOR. It also shows how to set the content type system property for C2D or telemetry messaging. After 10 attempts to receive a message, the sample will exit.
+
+To run this sample, Intel's MIT licensed [TinyCBOR](https://github.com/intel/tinycbor) library must be installed. Please see below for instructions. The Embedded C SDK is not dependent on any particular CBOR library.
 
 ## Step 1: Prerequisites
 
@@ -11,7 +13,7 @@ You should have the following items ready before beginning the process:
 -   [Prepare your development environment, IoT Hub, and Device](https://github.com/Azure/azure-iot-sdk-c/tree/master/iothub_client/samples#how-to-compile-and-run-the-samples)
 
 ## Step 2: Install Intel's tinycbor library.
-Intel/tinycbor is [licenesed](https://github.com/intel/tinycbor/blob/master/LICENSE) under the MIT License.
+Intel's TinyCBOR is [licenesed](https://github.com/intel/tinycbor/blob/master/LICENSE) under the MIT License.
 
 Linux:
 
@@ -55,7 +57,7 @@ Follow [these instructions](https://github.com/Azure/azure-iot-sdk-c/blob/master
 
     A property named `device_count` is supported for this sample.
 
-    Select your device's "Device Twin" tab in the Azure Portal of your IoT Hub. Add one of the avilable desired properties along with a corresponding value of the supported value type to the `desired` section of the JSON. Select "Save" to update the twin document and send the desired property twin message to the device. The IoT Hub will translate the twin JSON into CBOR for the device to consume.
+    To send a device twin desired property message, select your device's "Device Twin" tab in the Azure Portal of your IoT Hub. Add one of the avilable desired properties along with a corresponding value of the supported value type to the `desired` section of the twin JSON. Select "Save" to update the twin document and send the twin message to the device. The IoT Hub will translate the twin JSON into CBOR for the device to consume and decode.
 
     ```json
     "properties": {
@@ -73,12 +75,10 @@ Follow [these instructions](https://github.com/Azure/azure-iot-sdk-c/blob/master
 
 - Cloud-to-Device Messaging:
 
-    Select your device's "Message to Device" tab in the Azure Portal for your IoT Hub. Under "Properties", enter `$.ct` for "Key", and `cbor` for "Value". Enter a message in the "Message Body" and select "Send Message" to send a message to your device.
+   To send a C2D message, select your device's "Message to Device" tab in the Azure Portal for your IoT Hub. Under "Properties", enter the SDK-defined content type system property name `$.ct` for "Key", and the application-defined value `application/cbor` for "Value". This value must be agreed upon between the device and service side applications to use the content type system property for C2D messaging. Enter a message in the "Message Body" and select "Send Message". The Key and Value will appear as a URL-encoded key-value pair appended to the topic: `%24.ct=application%2Fcbor`.
 
-    <b>IMPORTANT:</b> This sample only demonstrates how to set the expected content type for a C2D message on the device side. Only device-side implementation is shown; the corresponding service-side required implementation to use this feature is not part of this sample. The Azure Portal service-side application does not support CBOR translation for C2D messages, therefore any correctly formatted JSON message sent from the portal will not arrive to the device as correct CBOR.
+    - NOTE: The Azure Portal will NOT translate a JSON formatted message into CBOR, nor will it encode the message in binary. Therefore, this sample only demonstrates how to parse the topic for the content type system property. It is up to the service application to encode correctly formatted CBOR (or other specified content type) and the device application to correctly decode it.
 
 - Telemetry:
 
-    After receiving a message (C2D or twin desired property) or upon a message timeout, the sample will send a single telemetry message in CBOR. After 10 attempts to receive a message, the sample will exit.
-
-    <b>IMPORTANT:</b> This sample only demonstrates how to set the expected content type for a Telemetry message on the device side. Only device-side implementation is shown; the corresponding service-side required implementation to use this feature is not part of this sample.
+    The sample will automatically send CBOR formatted messages after each attempt to receive a C2D or desired property message. The SDK-defined content type system property name `$.ct` and the application-defined value `application/cbor` will appear as a URL-encoded key-value pair appended to the topic: `%24.ct=application%2Fcbor`. This value must be agreed upon between the device and service side applications to use the content type system property for Telemetry messaging.

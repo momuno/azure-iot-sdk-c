@@ -36,9 +36,6 @@ add_executable(iothub_client_device_cbor_c2d_telemetry_twin_sample
 
 target_link_libraries(iothub_client_device_cbor_c2d_telemetry_twin_sample
     iothub_client
-)
-
-target_link_libraries(iothub_client_device_cbor_c2d_telemetry_twin_sample
     ${tinycbor}
 )
 
