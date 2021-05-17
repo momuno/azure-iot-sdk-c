@@ -19,6 +19,7 @@ add_sample_directory(iothub_ll_c2d_sample)
 add_sample_directory(iothub_ll_client_x509_sample)
 add_sample_directory(iothub_ll_telemetry_sample)
 add_sample_directory(iotedge_downstream_device_sample)
+add_sample_directory(iothub_client_device_twin_and_methods_sample)
 
 if(${use_http})
     if(NOT ${dont_use_uploadtoblob})
@@ -31,6 +32,18 @@ if(${use_http})
 endif()
 
 if(${use_mqtt})
+    # Only include CBOR sample if tinycbor has been found
+    find_library(tinycbor tinycbor
+        if(WIN32)
+            PATH_SUFFIXES tinycbor/lib lib
+        endif()
+    )
+    if (${tinycbor} STREQUAL "tinycbor-NOTFOUND")
+        message("-- Could NOT find tinycbor. Not compiling paho_iot_hub_cbor_c2d_telemetry_twin_sample")
+    else()
+        add_sample_directory(iothub_client_device_cbor_c2d_telemetry_twin_sample)
+    endif()
+
     if(LINUX)
         add_sample_directory(iothub_client_sample_mqtt_dm)
     endif()
@@ -46,10 +59,6 @@ endif()
 
 if(${use_amqp} AND ${use_http})
     add_sample_directory(iothub_ll_client_shared_sample)
-endif()
-
-if(${use_amqp} AND ${use_mqtt})
-    add_sample_directory(iothub_client_device_twin_and_methods_sample)
 endif()
 
 if(${use_mqtt})
