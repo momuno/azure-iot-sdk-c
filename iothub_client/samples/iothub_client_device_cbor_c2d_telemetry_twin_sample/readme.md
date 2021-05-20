@@ -55,7 +55,7 @@ Follow [these instructions](https://github.com/Azure/azure-iot-sdk-c/blob/master
 
 - Device Twin:
 
-    A property named `device_count` is supported for this sample.
+    There are three desired properties supported for this sample: `change_oil_remainder`, `state`:`max_speed`, and `state`:`software_version`.
 
     To send a device twin desired property message, select your device's "Device Twin" tab in the Azure Portal of your IoT Hub. Add one of the avilable desired properties along with a corresponding value of the supported value type to the `desired` section of the twin JSON. Select "Save" to update the twin document and send the twin message to the device. The IoT Hub will translate the twin JSON into CBOR for the device to consume and decode.
 
@@ -65,7 +65,7 @@ Follow [these instructions](https://github.com/Azure/azure-iot-sdk-c/blob/master
             "change_oil_remainder": true,
             "state": {
                 "max_speed": 200,
-                "software_version": 4,
+                "software_version": 4
             }
         }
     }

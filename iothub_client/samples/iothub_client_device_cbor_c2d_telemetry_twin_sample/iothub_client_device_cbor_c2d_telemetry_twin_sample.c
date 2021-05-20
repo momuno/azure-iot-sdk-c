@@ -25,7 +25,7 @@
 //#pragma GCC diagnostic pop
 //#endif
 
-#define CBOR_BUFFER_SIZE 512
+#define REPORTED_PROPERTY_BUFFER_SIZE 512
 
 // Trusted Cert -- Turn on via build flag
 #ifdef SET_TRUSTED_CERT_IN_SAMPLES
@@ -44,22 +44,37 @@
     static IOTHUB_CLIENT_TRANSPORT_PROVIDER protocol = MQTT_WebSocket_Protocol;
 #endif
 
-// Connection String - Paste in the your iothub device connection string.
+// Connection String -- Paste in the your iothub device connection string.
 static const char* connection_string= "[device connection string]";
 static IOTHUB_DEVICE_CLIENT_HANDLE iothub_client_handle;
 
-// Device properties - A Car Object
-typedef struct MAKER_TAG
+// Device Twin Properties
+static uint8_t reported_property_buffer[REPORTED_PROPERTY_BUFFER_SIZE];
+static size_t reported_property_length;
+static char* twin_desired_property = "desired";
+
+static char* twin_property_manufacturer_name = "manufacturer";
+static char* twin_property_manufacturer_make_name = "make";
+static char* twin_property_manufacturer_style_name = "style";
+static char* twin_property_manufacturer_year_name = "year";
+static char* twin_property_state_name = "state";
+static char* twin_property_state_max_speed_name = "max_speed";
+static char* twin_property_state_software_version_name = "software_version";
+static char* twin_property_state_vanity_plate_name = "vanity_plate";
+static char* twin_property_change_oil_reminder_name = "change_oil_reminder";
+static char* twin_property_last_oil_change_date_name = "last_oil_change_date";
+
+typedef struct MANUFACTURER_TAG
 {
-    char* name;                 // reported property
-    char* style;                // reported property
+    char* make;                 // reported property
+    char* model;                // reported property
     uint64_t year;              // reported property
-} Maker;
+} Manufacturer;
 
 typedef struct STATE_TAG
 {
     uint64_t max_speed;         // desired/reported property
-    uint64_t software_version;  // desired/reported property
+    double software_version;    // desired/reported property
     char* vanity_plate;         // reported property
 } State;
 
@@ -67,61 +82,80 @@ typedef struct CAR_TAG
 {
     bool change_oil_reminder;   // desired/reported property
     char* last_oil_change_date; // reported property
-    Maker maker;                // reported property
+    Manufacturer manufacturer;  // reported property
     State state;                // desired/reported property
 } Car;
+
+static Car device_car = { .change_oil_reminder = false,
+                          .last_oil_change_date = "May 4, 2016",
+                          .manufacturer = { .make = "Fabrikam",
+                                            .style = "sedan",
+                                            .year = 2014 },
+                          .state = { .max_speed = 100,
+                                     .software_version = 1.1,
+                                     .vanity_plate = "1T1" } };
 
 // Functions
 static void create_and_configure_device_client(void);
 static void connect_device_client_send_and_receive_messages(void);
 static void disconnect_device_client(void);
 
-static void serializeToCBOR(Car* car, uint8_t* cbor_buf, size_t buffer_size, size_t* out_cbor_length);
-static void parseFromCBOR(DEVICE_TWIN_UPDATE_STATE update_state, Car* car, const unsigned char* cbor_payload);
+static bool parse_cbor_desired_property(DEVICE_TWIN_UPDATE_STATE update_state, Car* car, const unsigned char* cbor_payload);
+static void build_cbor_reported_property(Car* car, uint8_t* reported_property_buffer, size_t reported_property_buffer_size, size_t* out_reported_property_length);
 
-static void getTwinAsyncCallback(DEVICE_TWIN_UPDATE_STATE update_state, const unsigned char* payload, size_t size, void* userContextCallback);
-static void deviceReportedPropertiesTwinCallback(int status_code, void* userContextCallback);
-static void deviceDesiredPropertiesTwinCallback(DEVICE_TWIN_UPDATE_STATE update_state, const unsigned char* payload, size_t size, void* userContextCallback);
+static void get_twin_async_callback(DEVICE_TWIN_UPDATE_STATE update_state, const unsigned char* payload, size_t size, void* userContextCallback);
+static void twin_desired_properties_callback(DEVICE_TWIN_UPDATE_STATE update_state, const unsigned char* payload, size_t size, void* userContextCallback);
+static void twin_reported_properties_callback(int status_code, void* userContextCallback);
 
 /*
  * This sample utilizes the Azure IoT Hub to get the device twin document, send a reported
- * property message, and receive desired property messages all in CBOR. It also shows how to set an
- * application-defined content type (such as CBOR) for either C2D or telemetry messaging, to be used
- * with a coordinated service-side application. After 10 attempts to receive a message, the sample
- * will exit. To run this sample, the MIT licensed intel/tinycbor library must be installed. The
- * Embedded C SDK is not dependent on ny particular CBOR library. X509 self-certification is used.
+ * property message, and receive desired property messages all in CBOR data format. It also shows
+ * how to set the content type system property for C2D and telemetry messaging. After 10 attempts to
+ * receive a C2D or desired property message, the sample will exit.
+ *
+ * To run this sample, Intel's MIT licensed TinyCBOR library must be installed. The Embedded C SDK
+ * is not dependent on any particular CBOR library. X509 self-certification is used.
  *
  * Device Twin:
- * A property named `device_count` is used. To send a device twin desired property message, select
- * your device's Device Twin tab in the Azure Portal of your IoT Hub. Add the property
- * `device_count` along with a corresponding value to the `desired` section of the twin JSON. Select
- * Save to update the twin document and send the twin message to the device. The IoT Hub will
- * translate the twin JSON into CBOR for the device to consume.
+ * There are three desired properties supported for this sample: `change_oil_remainder`,
+ * `state`:`max_speed`, and `state`:`software_version`. To send a device twin desired property
+ * message, select your device's Device Twin tab in the Azure Portal of your IoT Hub. Add one of the
+ * avilable desired properties along with a corresponding value of the supported value type to the
+ * `desired` section of the twin JSON. Select Save to update the twin document and send the twin
+ * message to the device. The IoT Hub will translate the twin JSON into CBOR for the device to
+ * consume and decode.
  *
- * {
- *   "properties": {
+ * "properties": {
  *     "desired": {
- *       "device_count": 42,
+ *         "change_oil_remainder": true,
+ *         "state": {
+ *             "max_speed": 200,
+ *             "software_version": 4.2
+ *         }
  *     }
- *   }
  * }
  *
- * No other property names sent in a desired property message are supported. If any are sent, the
- * log will report the `device_count` property was not found.
+ * No other property names sent in a desired property message are supported.
  *
- * C2D and Telemetry:
+ * C2D Messaging:
  * To send a C2D message, select your device's Message to Device tab in the Azure Portal for your
- * IoT Hub. Under Properties, enter `$.ct` for Key, and `cbor` for Value. Enter a message in the
- * Message Body and select Send Message. After receiving a message (C2D or twin desired property) or
- * upon a message timeout, the sample will send a single telemetry message in CBOR. After 10
- * attempts to receive a message, the sample will exit.
+ * IoT Hub. Under Properties, enter the SDK-defined content type system property name `$.ct` for
+ * Key, and the application-defined value `application/cbor` for Value. This value must be agreed
+ * upon between the device and service side applications to use the content type system property for
+ * C2D messaging. Enter a message in the Message Body and select Send Message. The Key and Value
+ * will appear as a URL-encoded key-value pair appended to the topic: `%24.ct=application%2Fcbor`.
  *
- * IMPORTANT: This sample only demonstrates how to set the expected content type for a C2D or
- * telemetry message on the device side. Only device-side implementation is shown; the corresponding
- * service-side required implementation to use this feature is not part of this sample. The Azure
- * Portal service-side application does not support CBOR translation for C2D messages, therefore any
- * correctly formatted JSON message sent from the portal will not arrive to the device as correct
- * CBOR.
+ * NOTE: The Azure Portal will NOT translate a JSON formatted message into CBOR, nor will it encode
+ * the message in binary. Therefore, this sample only demonstrates how to parse the topic for the
+ * content type system property. It is up to the service application to encode correctly formatted
+ * CBOR (or other specified content type) and the device application to correctly decode it.
+ *
+ * Telemetry:
+ * The sample will automatically send CBOR formatted messages after each attempt to receive a C2D or
+ * desired property message. The SDK-defined content type system property name `$.ct` and the
+ * application-defined value `application/cbor` will appear as a URL-encoded key-value pair appended
+ * to the topic: `%24.ct=application%2Fcbor`. This value must be agreed upon between the device and
+ * service side applications to use the content type system property for Telemetry messaging.
  */
 
 int main(void)
@@ -200,45 +234,38 @@ static void connect_device_client_send_and_receive_messages(void)
 {
     int rc;
 
-    // Initialize the device properties - A Car Object
-    Car car;
-    memset(&car, 0, sizeof(Car));
-    car.last_oil_change_date = "2016";
-    car.maker.name = "Fabrikam";
-    car.maker.style = "sedan";
-    car.maker.year = 2014;
-    car.state.max_speed = 100;
-    car.state.software_version = 1;
-    car.state.vanity_plate = "1T1";
+    //
+    // Send and receive messages from IoT Hub asynchronously. Connection occurs when a message is first sent.
+    //
 
-    // Send and receive messages from IoT Hub.
-    // Connection happens when a message is first sent.
-    rc = IoTHubDeviceClient_GetTwinAsync(iothub_client_handle, getTwinAsyncCallback, NULL);
+    // Send asynchronous GET request for twin document.
+    // Set GET twin document callback.
+    rc = IoTHubDeviceClient_GetTwinAsync(iothub_client_handle, get_twin_async_callback, NULL);
     if (rc != IOTHUB_CLIENT_OK)
     {
         (void)printf("Failed to send a GET request for the twin document asynchronously: return code %d.\n", rc);
         exit(rc);
     }
 
-    uint8_t reported_properties[CBOR_BUFFER_SIZE];
-    size_t reported_properties_length;
-    serializeToCBOR(&car, reported_properties, CBOR_BUFFER_SIZE, &reported_properties_length);
-    printf("Size of encoded CBOR: %zu\n", reported_properties_length);
-    rc = IoTHubDeviceClient_SendReportedState(iothub_client_handle, reported_properties, reported_properties_length, deviceReportedPropertiesTwinCallback, NULL);
-    if (rc != IOTHUB_CLIENT_OK)
-    {
-        (void)printf("Failed to send a reported property PATCH request to the IoT Hub: return code %d.\n", rc);
-        exit(rc);
-    }
-
-    rc = IoTHubDeviceClient_SetDeviceTwinCallback(iothub_client_handle, deviceDesiredPropertiesTwinCallback, &car);
+    // Set callback for twin desired property PATCH messages from IoT Hub.
+    rc = IoTHubDeviceClient_SetDeviceTwinCallback(iothub_client_handle, twin_desired_properties_callback, NULL);
     if (rc != IOTHUB_CLIENT_OK)
     {
         (void)printf("Failed to set the twin document callback: return code %d.\n", rc);
         exit(rc);
     }
 
-    (void)printf("Wait for desired properties update or direct method from service. Press any key to exit sample.\r\n");
+    // Send reported properties PATCH message.
+    // Set callback for twin reported property response from IoT Hub.
+    build_cbor_reported_property(reported_property_buffer, REPORTED_PROPERTY_BUFFER_SIZE, &reported_property_length);
+    rc = IoTHubDeviceClient_SendReportedState(iothub_client_handle, reported_property_buffer, reported_property_length, twin_reported_properties_callback, NULL);
+    if (rc != IOTHUB_CLIENT_OK)
+    {
+        (void)printf("Failed to send a reported property PATCH request to the IoT Hub: return code %d.\n", rc);
+        exit(rc);
+    }
+
+    (void)printf("Wait for desired properties message from IoT Hub. Press any key to exit sample.\r\n");
     (void)getchar();
 }
 
@@ -248,199 +275,423 @@ static void disconnect_device_client(void)
     IoTHub_Deinit();
 }
 
-
-
-
-//
-// Encoding/Decoding with chosen library
-//
-
-//  Serialize Car object to CBOR blob. To be sent as a twin document with reported properties.
-static void serializeToCBOR(Car* car, uint8_t* cbor_buf, size_t buffer_size, size_t* out_cbor_length)
-{
-    CborEncoder cbor_encoder_root;
-    CborEncoder cbor_encoder_root_container;
-    CborEncoder cbor_encoder_maker;
-    CborEncoder cbor_encoder_state;
-
-    // WARNING: Check the return of all API calls when developing your solution. Many return checks
-    //          are ommited from this sample for simplification.
-
-    // Only reported properties.
-    cbor_encoder_init(&cbor_encoder_root, cbor_buf, buffer_size, 0);
-    (void)cbor_encoder_create_map(&cbor_encoder_root, &cbor_encoder_root_container, 3);
-
-        (void)cbor_encode_text_string(&cbor_encoder_root_container, "last_oil_change_date", strlen("last_oil_change_date"));
-        (void)cbor_encode_text_string(&cbor_encoder_root_container, car->last_oil_change_date, strlen(car->last_oil_change_date));
-
-        (void)cbor_encode_text_string(&cbor_encoder_root_container, "maker", strlen("maker"));
-        (void)cbor_encoder_create_map(&cbor_encoder_root_container, &cbor_encoder_maker, 3);
-            (void)cbor_encode_text_string(&cbor_encoder_maker, "name", strlen("name"));
-            (void)cbor_encode_text_string(&cbor_encoder_maker, car->maker.name, strlen(car->maker.name));
-            (void)cbor_encode_text_string(&cbor_encoder_maker, "style", strlen("style"));
-            (void)cbor_encode_text_string(&cbor_encoder_maker, car->maker.style, strlen(car->maker.style));
-            (void)cbor_encode_text_string(&cbor_encoder_maker, "year", strlen("year"));
-            (void)cbor_encode_uint(&cbor_encoder_maker, car->maker.year);
-        (void)cbor_encoder_close_container(&cbor_encoder_root_container, &cbor_encoder_maker);
-
-        (void)cbor_encode_text_string(&cbor_encoder_root_container, "state", strlen("state"));
-        (void)cbor_encoder_create_map(&cbor_encoder_root_container, &cbor_encoder_state, 3);
-            (void)cbor_encode_text_string(&cbor_encoder_state, "max_speed", strlen("max_speed"));
-            (void)cbor_encode_simple_value(&cbor_encoder_state, car->state.max_speed);
-            (void)cbor_encode_text_string(&cbor_encoder_state, "software_version", strlen("software_version"));
-            (void)cbor_encode_uint(&cbor_encoder_state, car->state.software_version);
-            (void)cbor_encode_text_string(&cbor_encoder_state, "vanity_plate", strlen("vanity_plate"));
-            (void)cbor_encode_text_string(&cbor_encoder_state, car->state.vanity_plate, strlen(car->state.vanity_plate));
-        (void)cbor_encoder_close_container(&cbor_encoder_root_container, &cbor_encoder_state);
-
-    (void)cbor_encoder_close_container(&cbor_encoder_root, &cbor_encoder_root_container);
-
-    *out_cbor_length = cbor_encoder_get_buffer_size(&cbor_encoder_root, cbor_buf);
-}
-
-// Convert the desired properties of the Device Twin CBOR blob from IoT Hub into a Car Object.
-static void parseFromCBOR(DEVICE_TWIN_UPDATE_STATE update_state, Car* car, const unsigned char* cbor_payload)
-{
-    CborParser cbor_parser;
-    CborValue root;
-    CborValue state_root;
-
-    // Only desired properties.
-    CborValue change_oil_reminder;
-    CborValue max_speed;
-    CborValue software_version;
-
-    // WARNING: Check the return of all API calls when developing your solution. Many return checks
-    //          are ommited from this sample for simplification.
-    CborError rc;
-
-    rc = cbor_parser_init(cbor_payload, strlen((char*)cbor_payload), 0, &cbor_parser, &root);
-    if (rc)
-    {
-        printf("Failed to initiate parser: CborError %d.", rc);
-        exit(rc);
-    }
-
-    if (update_state == DEVICE_TWIN_UPDATE_COMPLETE)
-    {
-        rc = cbor_value_map_find_value(&root, "desired", &root);
-        if (rc)
-        {
-            printf("Error when searching for %s: CborError %d.", "desired", rc);
-            exit(rc);
-        }
-    }
-
-    if (cbor_value_map_find_value(&root, "change_oil_reminder", &change_oil_reminder) == CborNoError)
-    {
-        if (cbor_value_is_valid(&change_oil_reminder))
-        {
-            if (cbor_value_is_boolean(&change_oil_reminder))
-            {
-                (void)cbor_value_get_boolean(&change_oil_reminder, &car->change_oil_reminder);
-            }
-        }
-    }
-
-    if (cbor_value_map_find_value(&root, "state", &state_root) == CborNoError)
-    {
-        if (cbor_value_is_valid(&state_root))
-        {
-            if (cbor_value_map_find_value(&state_root, "max_speed", &max_speed) == CborNoError)
-            {
-                if (cbor_value_is_valid(&max_speed))
-                {
-                    if (cbor_value_is_unsigned_integer(&max_speed))
-                    {
-                        (void)cbor_value_get_uint64(&max_speed, &car->state.max_speed);
-                    }
-                }
-            }
-
-            if (cbor_value_map_find_value(&root, "software_version", &software_version) == CborNoError)
-            {
-                if (cbor_value_is_valid(&software_version))
-                {
-                    if (cbor_value_is_unsigned_integer(&software_version))
-                    {
-                        (void)cbor_value_get_uint64(&software_version, &car->state.software_version);
-                    }
-                }
-            }
-        }
-    }
-}
-
-
 //
 // Callbacks
 //
-
-// Callback for async GET request to IoT Hub for entire Device Twin document.
-static void getTwinAsyncCallback(DEVICE_TWIN_UPDATE_STATE update_state, const unsigned char* payload, size_t size, void* userContextCallback)
+static void get_twin_async_callback(DEVICE_TWIN_UPDATE_STATE update_state, const unsigned char* payload, size_t size, void* userContextCallback)
 {
-    (void)update_state;
     (void)userContextCallback;
 
-    printf("getTwinAsyncCallback payload:\n%.*s\n", (int)size, payload);
+    printf("get_twin_async_callback payload: ");
     for (uint i = 0; i < size; i++)
     {
         printf("%0X ", payload[i]);
     }
     printf("\n");
 
-    Car* car = (Car*)userContextCallback;
-    Car desired_car;
-    memset(&desired_car, 0, sizeof(Car));
-    parseFromCBOR(update_state, &desired_car, payload);
+    Car iot_hub_car;
+    memset(&iot_hub_car, 0, sizeof(Car));
+    parse_cbor_desired_property(update_state, payload, &iot_hub_car);
 
-    printf("Received a desired change_oil_reminder = %d\n", desired_car.change_oil_reminder);
-    printf("Received a desired max_speed = %" PRIu64 "\n", desired_car.state.max_speed);
-    printf("Received a desired software_version = %" PRIu64 "\n", desired_car.state.software_version);
+    // Update device_car to match twin desired properties received from IoT Hub.
+    device_car.change_oil_reminder = iot_hub_car.change_oil_reminder;
+    device_car.state.max_speed = iot_hub_car.state.max_speed;
+    device_car.state.software_version = iot_hub_car.state.software_version;
 }
 
-// Callback for when device sends reported properties to IoT Hub, and IoT Hub updates the Device
-// Twin document.
-static void deviceReportedPropertiesTwinCallback(int status_code, void* userContextCallback)
+static void twin_desired_properties_callback(DEVICE_TWIN_UPDATE_STATE update_state, const unsigned char* payload, size_t size, void* userContextCallback)
 {
     (void)userContextCallback;
-    printf("deviceReportedPropertiesTwinCallback: Result status code: %d\n", status_code);
+
+    printf("twin_desired_properties_callback payload: ");
+    for (uint i = 0; i < size; i++)
+    {
+        printf("%0X ", payload[i]);
+    }
+    printf("\n");
+
+    Car iot_hub_car;
+    memset(&iot_hub_car, 0, sizeof(Car));
+    parse_cbor_desired_property(update_state, payload, &iot_hub_car);
+
+    // Update device_car if twin desired property received from IoT Hub is different than what it stored on device.
+    if (device_car.change_oil_reminder != iot_hub_car.change_oil_reminder)
+    {
+        printf("Received an updated change_oil_reminder = %s\n", iot_hub_car.change_oil_reminder ? "true" : "false");
+        device_car.change_oil_reminder = iot_hub_car.change_oil_reminder;
+    }
+
+    if (device_car.state.max_speed != iot_hub_car.state.max_speed)
+    {
+        if (iot_hub_car.state.max_speed > 260)
+        {
+            printf("Received an updated max_speed that exceeds device capability: %" PRIu64 ". Rejecting update.\n")
+        }
+        else
+        {
+            printf("Received an updated max_speed = %" PRIu64 "\n", iot_hub_car.state.max_speed);
+            device_car.state.max_speed = iot_hub_car.state.max_speed;
+        }
+    }
+
+    if (device_car.state.software_version != iot_hub_car.state.software_version)
+    {
+        printf("Received an updated software_version = %f\n", iot_hub_car.state.software_version);
+        device_car.state.software_version = iot_hub_car.state.software_version;
+    }
+
+    // Update IoT Hub with current device properties.
+    build_cbor_reported_property(reported_property_buffer, REPORTED_PROPERTY_BUFFER_SIZE, &reported_property_length);
+    rc = IoTHubDeviceClient_SendReportedState(iothub_client_handle, reported_property_buffer, reported_property_length, twin_reported_properties_callback, NULL);
+    if (rc != IOTHUB_CLIENT_OK)
+    {
+        (void)printf("Failed to send a reported property PATCH request to the IoT Hub: return code %d.\n", rc);
+        exit(rc);
+    }
 }
 
-// Callback for when IoT Hub updates the desired properties of the Device Twin document.
-static void deviceDesiredPropertiesTwinCallback(DEVICE_TWIN_UPDATE_STATE update_state, const unsigned char* payload, size_t size, void* userContextCallback)
+static void twin_reported_properties_callback(int status_code, void* userContextCallback)
 {
-    (void)update_state;
-    (void)size;
+    (void)userContextCallback;
+    printf("twin_reported_properties_callback: Result status code: %d\n", status_code);
+}
 
-    printf("deviceDesiredPropertiesTwinCallback payload:\n%.*s\n", (int)size, payload);
+//
+// Encoding/Decoding with CBOR library
+//
+static bool parse_cbor_desired_property(DEVICE_TWIN_UPDATE_STATE update_state, const unsigned char* payload, Car* out_car)
+{
+    CborError rc; // CborNoError == 0
+    bool result;
 
-    Car* car = (Car*)userContextCallback;
-    Car desired_car;
-    memset(&desired_car, 0, sizeof(Car));
-    parseFromCBOR(update_state, &desired_car, payload);
+    CborParser parser;
+    CborValue root;
+    CborValue state_root;
 
-    if (desired_car.change_oil_reminder != car->change_oil_reminder)
+    CborValue change_oil_reminder;
+    CborValue max_speed;
+    CborValue software_version;
+
+    rc = cbor_parser_init(payload, strlen((char*)payload), 0, &parser, &root);
+    if (rc)
     {
-        printf("Received a desired change_oil_reminder = %d\n", desired_car.change_oil_reminder);
-        car->change_oil_reminder = desired_car.change_oil_reminder;
+        printf("Failed to initiate parser: CborError %d.", rc);
+        exit(rc);
     }
 
-    if (desired_car.state.max_speed != 0 && desired_car.state.max_speed != car->state.max_speed)
+    // Check if this is the full twin document or only the desired properties.
+    if (update_state == DEVICE_TWIN_UPDATE_COMPLETE) // full twin document (desried and reported)
     {
-        printf("Received a desired max_speed = %" PRIu64 "\n", desired_car.state.max_speed);
-        car->state.max_speed = desired_car.state.max_speed;
+        rc = cbor_value_map_find_value(&root, twin_desired_property, &root);
+        if (rc)
+        {
+            printf("Error when searching for %s: CborError %d.", twin_desired_property, rc);
+            exit(rc);
+        }
     }
 
-    if (desired_car.state.software_version != 0 && desired_car.state.software_version != car->state.software_version)
+    // change_oil_reminder
+    rc = cbor_value_map_find_value(&root, twin_property_change_oil_reminder_name, &change_oil_reminder);
+    if (rc)
     {
-        printf("Received a desired software_version = %" PRIu64 "\n", desired_car.state.software_version);
-        car->state.software_version = desired_car.state.software_version;
+        IOT_SAMPLE_LOG_ERROR("Error when searching for %s: CborError %d.", twin_property_change_oil_reminder_name, rc);
+        exit(rc);
+    }
+    if (cbor_value_is_valid(&change_oil_reminder))
+    {
+        if (cbor_value_is_boolean(&change_oil_reminder))
+        {
+            rc = cbor_value_get_boolean(&change_oil_reminder, &out_car->change_oil_reminder);
+            if (rc)
+            {
+                IOT_SAMPLE_LOG_ERROR("Failed to get boolean value of property %s: CborError %d.", twin_property_change_oil_reminder_name, rc);
+                exit(rc);
+            }
+            else
+            {
+                IOT_SAMPLE_LOG("Parsed desired property `%s`: %" PRIi64, twin_property_change_oil_reminder_name, out_car->change_oil_reminder);
+                result = true;
+            }
+        }
+        else
+        {
+            IOT_SAMPLE_LOG("`%s` property value was not a boolean.", twin_property_change_oil_reminder_name);
+            result = false;
+        }
+    }
+    else
+    {
+        IOT_SAMPLE_LOG("`%s` property name was not found in desired property message.", twin_property_change_oil_reminder_name);
+        result = false;
     }
 
-    uint8_t reported_properties[CBOR_BUFFER_SIZE];
-    size_t reported_properties_length;
-    serializeToCBOR(car, reported_properties, CBOR_BUFFER_SIZE, &reported_properties_length);
+    // state
+    rc = cbor_value_map_find_value(&root, twin_property_state_name, &state_root);
+    if (rc)
+    {
+        IOT_SAMPLE_LOG_ERROR("Error when searching for %s: CborError %d.", twin_property_state_name, rc);
+        exit(rc);
+    }
+    if (cbor_value_is_valid(&state_root))
+    {
+        // state : max_speed
+        rc = cbor_value_map_find_value(&root, twin_property_state_max_speed_name, &max_speed);
+        if (rc)
+        {
+            IOT_SAMPLE_LOG_ERROR("Error when searching for %s: CborError %d.", twin_property_state_max_speed_name, rc);
+            exit(rc);
+        }
+        if (cbor_value_is_valid(&max_speed))
+        {
+            if (cbor_value_is_unsigned_integer(&max_speed))
+            {
+                rc = cbor_value_get_uint64(&max_speed, &out_car->state.max_speed);
+                if (rc)
+                {
+                    IOT_SAMPLE_LOG_ERROR("Failed to get uint64 value of property %s: CborError %d.", twin_property_state_max_speed_name, rc);
+                    exit(rc);
+                }
+                else
+                {
+                    IOT_SAMPLE_LOG("Parsed desired property `%s`: %" PRIu64, twin_property_state_max_speed_name, out_car->state.max_speed);
+                    result = true;
+                }
+            }
+            else
+            {
+                IOT_SAMPLE_LOG("`%s` property value was not an unsigned integer.", twin_property_state_max_speed_name);
+                result = false;
+            }
+        }
+        else
+        {
+            IOT_SAMPLE_LOG("`%s` property name was not found in desired property message.", twin_property_state_max_speed_name);
+            result = false;
+        }
 
-    (void)IoTHubDeviceClient_SendReportedState(iothub_client_handle, reported_properties, reported_properties_length, deviceReportedPropertiesTwinCallback, NULL);
+        // state : software_version
+        rc = cbor_value_map_find_value(&root, twin_property_state_software_version_name, &software_version);
+        if (rc)
+        {
+            IOT_SAMPLE_LOG_ERROR("Error when searching for %s: CborError %d.", twin_property_state_software_version_name, rc);
+            exit(rc);
+        }
+        if (cbor_value_is_valid(&software_version))
+        {
+            if (cbor_value_is_double(&software_version))
+            {
+                rc = cbor_value_get_double(&software_version, &out_car->state.software_version);
+                if (rc)
+                {
+                    IOT_SAMPLE_LOG_ERROR("Failed to get double value of property %s: CborError %d.", twin_property_state_software_version_name, rc);
+                    exit(rc);
+                }
+                else
+                {
+                    IOT_SAMPLE_LOG("Parsed desired property `%s`: %" PRIu64, twin_property_state_software_version_name, out_car->state.software_version);
+                    result = true;
+                }
+            }
+            else
+            {
+                IOT_SAMPLE_LOG("`%s` property value was not a double.", twin_property_state_software_version_name);
+                result = false;
+            }
+        }
+        else
+        {
+            IOT_SAMPLE_LOG("`%s` property name was not found in desired property message.", twin_property_state_software_version_name);
+            result = false;
+        }
+    }
+    else
+    {
+        IOT_SAMPLE_LOG("`%s` property name was not found in desired property message.", twin_property_state_name);
+        result = false;
+    }
+
+    return result;
+}
+
+static void build_cbor_reported_property(uint8_t* reported_property_buffer, size_t reported_property_buffer_size, size_t* out_reported_property_length)
+{
+    CborError rc; // CborNoError == 0
+
+    CborEncoder encoder;
+    CborEncoder encoder_map;
+    CborEncoder manufacturer_map;
+    CborEncoder state_map;
+
+    cbor_encoder_init(&encoder, reported_property_buffer, reported_property_buffer_size, 0);
+
+    // Encoder Map
+    rc = cbor_encoder_create_map(&encoder, &encoder_map, 3);
+    if (rc)
+    {
+        IOT_SAMPLE_LOG_ERROR("Failed to create encoder map: CborError %d.", rc);
+        exit(rc);
+    }
+
+        // change_oil_reminder
+        rc = cbor_encode_text_string(&encoder_map, twin_property_change_oil_reminder_name, strlen(twin_property_change_oil_reminder_name));
+        if (rc)
+        {
+            IOT_SAMPLE_LOG_ERROR("Failed to encode text string '%s': CborError %d.", twin_property_change_oil_reminder_name, rc);
+            exit(rc);
+        }
+        rc = cbor_encode_boolean(&encoder_map, device_car.change_oil_reminder);
+        if (rc)
+        {
+            IOT_SAMPLE_LOG_ERROR("Failed to encode boolean value '%s': CborError %d.", device_car.change_oil_reminder ? "true" : "false", rc);
+            exit(rc);
+        }
+
+        // last_oil_change_date
+        rc = cbor_encode_text_string(&encoder_map, twin_property_last_oil_change_date_name, strlen(twin_property_last_oil_change_date_name));
+        if (rc)
+        {
+            IOT_SAMPLE_LOG_ERROR("Failed to encode text string '%s': CborError %d.", twin_property_last_oil_change_date_name, rc);
+            exit(rc);
+        }
+        rc = cbor_encode_text_string(&encoder_map, device_car.last_oil_change_date, strlen(device_car.last_oil_change_date));
+        if (rc)
+        {
+            IOT_SAMPLE_LOG_ERROR("Failed to encode text string '%s': CborError %d.", device_car.last_oil_change_date, rc);
+            exit(rc);
+        }
+
+        // Manufacturer Map
+        rc = cbor_encode_text_string(&encoder_map, twin_property_manufacturer_name, strlen(twin_property_manufacturer_name));
+        if (rc)
+        {
+            IOT_SAMPLE_LOG_ERROR("Failed to encode text string '%s': CborError %d.", twin_property_manufacturer_name, rc);
+            exit(rc);
+        }
+        rc = cbor_encoder_create_map(&encoder_map, &manufacturer_map, 3);
+        if (rc)
+        {
+            IOT_SAMPLE_LOG_ERROR("Failed to create %s map: CborError %d.", twin_property_manufacturer_name, rc);
+            exit(rc);
+        }
+
+            // manufacturer: make
+            rc = cbor_encode_text_string(&manufacturer_map, twin_property_manufacturer_make_name, strlen(twin_property_manufacturer_make_name));
+            if (rc)
+            {
+                IOT_SAMPLE_LOG_ERROR("Failed to encode text string '%s': CborError %d.", twin_property_manufacturer_make_name, rc);
+                exit(rc);
+            }
+            rc = cbor_encode_text_string(&manufacturer_map, device_car.manufacturer.make, strlen(device_car.manufacturer.make));
+            if (rc)
+            {
+                IOT_SAMPLE_LOG_ERROR("Failed to encode text string '%s': CborError %d.",  device_car.manufacturer.make, rc);
+                exit(rc);
+            }
+
+            // manufacturer: style
+            rc = cbor_encode_text_string(&manufacturer_map, twin_property_manufacturer_style_name, strlen(twin_property_manufacturer_style_name));
+            if (rc)
+            {
+                IOT_SAMPLE_LOG_ERROR("Failed to encode text string '%s': CborError %d.", twin_property_manufacturer_style_name, rc);
+                exit(rc);
+            }
+            rc = cbor_encode_text_string(&manufacturer_map, device_car.manufacturer.style, strlen(device_car.manufacturer.style));
+            if (rc)
+            {
+                IOT_SAMPLE_LOG_ERROR("Failed to encode text string '%s': CborError %d.",  device_car.manufacturer.style, rc);
+                exit(rc);
+            }
+
+            // manufacturer: year
+            rc = cbor_encode_text_string(&manufacturer_map, twin_property_manufacturer_year_name, strlen(twin_property_manufacturer_year_name));
+            if (rc)
+            {
+                IOT_SAMPLE_LOG_ERROR("Failed to encode text string '%s': CborError %d.", twin_property_manufacturer_year_name, rc);
+                exit(rc);
+            }
+            rc = cbor_encode_uint(&manufacturer_map, device_car.manufacturer.year);
+            if (rc)
+            {
+                IOT_SAMPLE_LOG_ERROR("Failed to encode int '%d': CborError %d.", device_car.manufacturer.year, rc);
+                exit(rc);
+            }
+
+        rc = cbor_encoder_close_container(&encoder_map, &manufacturer_map);
+        if (rc)
+        {
+            IOT_SAMPLE_LOG_ERROR("Failed to close %s container: CborError %d.", twin_property_manufacturer_name, rc);
+            exit(rc);
+        }
+
+        // State Map
+        rc = cbor_encode_text_string(&encoder_map, twin_property_state_name, strlen(twin_property_state_name));
+        if (rc)
+        {
+            IOT_SAMPLE_LOG_ERROR("Failed to encode text string '%s': CborError %d.", twin_property_state_name, rc);
+            exit(rc);
+        }
+        rc = cbor_encoder_create_map(&encoder_map, &state_map, 3);
+        if (rc)
+        {
+            IOT_SAMPLE_LOG_ERROR("Failed to create %s map: CborError %d.", twin_property_state_name, rc);
+            exit(rc);
+        }
+
+            // state: max_speed
+            rc = cbor_encode_text_string(&state_map, twin_property_state_max_speed_name, strlen(twin_property_state_max_speed_name));
+            if (rc)
+            {
+                IOT_SAMPLE_LOG_ERROR("Failed to encode text string '%s': CborError %d.", twin_property_state_max_speed_name, rc);
+                exit(rc);
+            }
+            rc = cbor_encode_uint(&state_map, device_car.state.max_speed);
+            if (rc)
+            {
+                IOT_SAMPLE_LOG_ERROR("Failed to encode int '%d': CborError %d.", device_car.state.max_speed, rc);
+                exit(rc);
+            }
+
+            // state: software_version
+            rc = cbor_encode_text_string(&state_map, twin_property_state_software_version_name, strlen(twin_property_state_software_version_name));
+            if (rc)
+            {
+                IOT_SAMPLE_LOG_ERROR("Failed to encode text string '%s': CborError %d.", twin_property_state_software_version_name, rc);
+                exit(rc);
+            }
+            rc = cbor_encode_double(&state_map, device_car.state.software_version);
+            if (rc)
+            {
+                IOT_SAMPLE_LOG_ERROR("Failed to encode double '%f': CborError %d.", device_car.state.software_version, rc);
+                exit(rc);
+            }
+
+            // state: vanity_plate
+            rc = cbor_encode_text_string(&state_map, twin_property_state_vanity_plate_name, strlen(twin_property_state_vanity_plate_name));
+            if (rc)
+            {
+                IOT_SAMPLE_LOG_ERROR("Failed to encode text string '%s': CborError %d.", twin_property_state_vanity_plate_name, rc);
+                exit(rc);
+            }
+            rc = cbor_encode_text_string(&state_map, device_car.state.vanity_plate, strlen(device_car.state.vanity_plate));
+            if (rc)
+            {
+                IOT_SAMPLE_LOG_ERROR("Failed to encode text string '%s': CborError %d.",  device_car.state.vanity_plate, rc);
+                exit(rc);
+            }
+
+        rc = cbor_encoder_close_container(&encoder_map, &state_map);
+        if (rc)
+        {
+            IOT_SAMPLE_LOG_ERROR("Failed to close %s container: CborError %d.", twin_property_state_name, rc);
+            exit(rc);
+        }
+
+    rc = cbor_encoder_close_container(&encoder, &encoder_map);
+    if (rc)
+    {
+        IOT_SAMPLE_LOG_ERROR("Failed to close container: CborError %d.", rc);
+        exit(rc);
+    }
+
+    *out_reported_property_length = cbor_encoder_get_buffer_size(&encoder, reported_property_buffer);
 }
