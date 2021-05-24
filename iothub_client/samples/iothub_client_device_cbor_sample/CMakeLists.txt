@@ -2,7 +2,7 @@
 #Licensed under the MIT license. See LICENSE file in the project root for full license information.
 
 if(NOT ${use_mqtt})
-    message(FATAL_ERROR "iothub_client_device_cbor_c2d_telemetry_twin_sample being generated without MQTT support")
+    message(FATAL_ERROR "iothub_client_device_cbor_sample being generated without MQTT support")
 endif()
 
 compileAsC99()
@@ -20,21 +20,21 @@ endif()
 
 # Sample Executable
 set(iothub_client_device_cbor_c2d_telemetry_twin_sample_c_files
-    iothub_client_device_cbor_c2d_telemetry_twin_sample.c
+    iothub_client_device_cbor_sample.c
 )
 
 if(${use_sample_trusted_cert})
     add_definitions(-DSET_TRUSTED_CERT_IN_SAMPLES)
     include_directories(${PROJECT_SOURCE_DIR}/certs)
-    set(iothub_client_device_cbor_c2d_telemetry_twin_sample_c_files ${iothub_client_device_cbor_c2d_telemetry_twin_sample_c_files}
+    set(iothub_client_device_cbor_sample_c_files ${iothub_client_device_cbor_sample_c_files}
         ${PROJECT_SOURCE_DIR}/certs/certs.c)
 endif()
 
-add_executable(iothub_client_device_cbor_c2d_telemetry_twin_sample
-    ${iothub_client_device_cbor_c2d_telemetry_twin_sample_c_files}
+add_executable(iothub_client_device_cbor_sample
+    ${iothub_client_device_cbor_sample_c_files}
 )
 
-target_link_libraries(iothub_client_device_cbor_c2d_telemetry_twin_sample
+target_link_libraries(iothub_client_device_cbor_sample
     iothub_client
     ${tinycbor}
 )
@@ -45,7 +45,7 @@ find_path(TINYCBOR_INCLUDE_DIR cbor.h
         elseif(UNIX) tinycbor #/usr/local/include/tinycbor
         endif()
 )
-target_include_directories(iothub_client_device_cbor_c2d_telemetry_twin_sample
+target_include_directories(iothub_client_device_cbor_sample
     PRIVATE
         ${TINYCBOR_INCLUDE_DIR}
 )
