@@ -19,7 +19,7 @@ if(MSVC)
 endif()
 
 # Sample Executable
-set(iothub_client_device_cbor_c2d_telemetry_twin_sample_c_files
+set(iothub_client_device_cbor_sample
     iothub_client_device_cbor_sample.c
 )
 
