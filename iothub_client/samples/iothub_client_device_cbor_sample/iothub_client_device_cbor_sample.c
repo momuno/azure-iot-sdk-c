@@ -15,15 +15,7 @@
 #include "iothub_device_client.h"
 #include "iothub_message.h"
 
-//#ifdef __GNUC__
-//#pragma GCC diagnostic push
-// warning within intel/tinycbor: conversion from 'int' to uint8_t'
-//#pragma GCC diagnostic ignored "-Wconversion"
-//#endif
 #include "cbor.h"
-//#ifdef __GNUC__
-//#pragma GCC diagnostic pop
-//#endif
 
 #define REPORTED_PROPERTY_BUFFER_SIZE 512
 #define TELEMETRY_MESSAGE_BUFFER_SIZE 128
@@ -52,15 +44,15 @@
  * The content type system property for C2D and/or telemetry messages will appear as a key-value
  * pair appended to the topic. They key is SDK-defined as `$.ct`, and URL-encoded as `%24.ct`. The
  * value is application-defined and must be agreed upon between the device and service side
- * applications. Examples for this value include `text%2Fplain` and `application%2Fjson`. To
- * demonstrate setting the content type system property, this sample uses `application%2Fcbor`.
+ * applications. Examples for this value include `text/plain` and `application/json`. To
+ * demonstrate setting the content type system property, this sample uses `application/cbor`.
  * See iothub_message.h for more system properties available to set for C2D and telemetry messaging.
  */
 #define CONTENT_TYPE_C2D "application/cbor" // application-defined
 #define CONTENT_TYPE_TELEMETRY "application/cbor" // application-defined
 
 // Connection String -- Paste in the your iothub device connection string.
-static const char* connectionString = "[device connection string]";
+static const char* connection_string = "[device connection string]";
 
 static IOTHUB_DEVICE_CLIENT_HANDLE iothub_client_handle;
 static IOTHUB_MESSAGE_HANDLE message_handle;
@@ -68,9 +60,6 @@ static IOTHUB_MESSAGE_HANDLE message_handle;
 // Telemetry
 static char* const telemetry_property_engine_temperature_name = "engine_temperature";
 static uint64_t telemetry_message_id = 0;
-
-// C2D
-
 
 // Device Twin Properties
 static uint8_t reported_property_buffer[REPORTED_PROPERTY_BUFFER_SIZE];
@@ -143,13 +132,13 @@ static void build_cbor_telemetry(uint8_t* telemetry_payload, size_t telemetry_pa
  * receive a C2D or desired property message, the sample will exit.
  *
  * To run this sample, Intel's MIT licensed TinyCBOR library must be installed. The Embedded C SDK
- * is not dependent on any particular CBOR library. X509 self-certification is used.
+ * is not dependent on any particular CBOR library. SAS authentication is used.
  *
  * Device Twin:
  * There are three desired properties supported for this sample: `change_oil_remainder`,
  * `state`.`max_speed`, and `state`.`software_version`. To send a device twin desired property
  * message, select your device's Device Twin tab in the Azure Portal of your IoT Hub. Add one of the
- * avilable desired properties along with a corresponding value of the supported value type to the
+ * available desired properties along with a corresponding value of the supported value type to the
  * `desired` section of the twin JSON. Select Save to update the twin document and send the twin
  * message to the device. The IoT Hub will translate the twin JSON into CBOR for the device to
  * consume and decode.
@@ -174,7 +163,7 @@ static void build_cbor_telemetry(uint8_t* telemetry_payload, size_t telemetry_pa
  * C2D messaging. Enter a message in the Message Body and select Send Message. The Key and Value
  * will appear as a URL-encoded key-value pair appended to the topic: `%24.ct=application%2Fcbor`.
  *
- * NOTE: The Azure Portal only recongnizes printable character input and will NOT translate a JSON
+ * NOTE: The Azure Portal only recognizes printable character input and will NOT translate a JSON
  * formatted message into CBOR. Therefore, this sample only demonstrates how to parse the topic for
  * the content type system property. It is up to the service application to encode correctly
  * formatted CBOR (or other specified content type) and the device application to correctly decode
@@ -339,16 +328,16 @@ static void send_telemetry(void)
     }
 
     (void)printf("\ntelemetry message payload: ");
-    for (uint i = 0; i < telemetry_payload_length; ++i)
+    for (size_t i = 0; i < telemetry_payload_length; ++i)
     {
         (void)printf("%02X ", telemetry_payload_buffer[i]);
     }
     (void)printf("\n");
 
-    // Publish the telemetry message.
+    // Publish the telemetry message. Set callback for telemetry send confirmation.
     uint64_t id = telemetry_message_id;
     IoTHubDeviceClient_SendEventAsync(iothub_client_handle, message_handle, send_telemetry_confirm_callback, &id);
-    (void)printf("The device client published the telemetry message. telemetry_message_id: %lu.\n\n", id);
+    (void)printf("The device client published the telemetry message. telemetry_message_id: %" PRIu64 ".\n\n", id);
 
     // The message is copied to the SDK so we can destroy it.
     IoTHubMessage_Destroy(message_handle);
@@ -376,10 +365,9 @@ static void connection_status_callback(IOTHUB_CLIENT_CONNECTION_STATUS result, I
 static void get_twin_async_callback(DEVICE_TWIN_UPDATE_STATE update_state, const unsigned char* payload, size_t size, void* userContextCallback)
 {
     (void)userContextCallback;
-    bool update = false;
 
     (void)printf("\nget_twin_async_callback payload: ");
-    for (uint i = 0; i < size; ++i)
+    for (size_t i = 0; i < size; ++i)
     {
         (void)printf("%02X ", payload[i]);
     }
@@ -403,13 +391,13 @@ static void get_twin_async_callback(DEVICE_TWIN_UPDATE_STATE update_state, const
     {
         if (iot_hub_car.state.max_speed > 260)
         {
-            (void)printf("Desired `max_speed` of %ld exceeds device capability. Rejecting update.\n", iot_hub_car.state.max_speed);
+            (void)printf("Desired `max_speed` of %" PRIu64 " exceeds device capability. Rejecting update.\n", iot_hub_car.state.max_speed);
         }
         else
         {
             uint64_t temp_value = device_car.state.max_speed;
             device_car.state.max_speed = iot_hub_car.state.max_speed;
-            (void)printf("The device client updated `%s` locally from %ld to %ld.\n", twin_property_state_max_speed_name, temp_value, iot_hub_car.state.max_speed);
+            (void)printf("The device client updated `%s` locally from %" PRIu64 " to %" PRIu64 ".\n", twin_property_state_max_speed_name, temp_value, iot_hub_car.state.max_speed);
         }
     }
     else
@@ -448,7 +436,7 @@ static void twin_desired_properties_callback(DEVICE_TWIN_UPDATE_STATE update_sta
     bool update = false;
 
     (void)printf("\ntwin_desired_properties_callback payload: ");
-    for (uint i = 0; i < size; ++i)
+    for (size_t i = 0; i < size; ++i)
     {
         (void)printf("%02X ", payload[i]);
     }
@@ -476,13 +464,13 @@ static void twin_desired_properties_callback(DEVICE_TWIN_UPDATE_STATE update_sta
         {
             if (iot_hub_car.state.max_speed > 260)
             {
-                (void)printf("Desired `max_speed` of %ld exceeds device capability. Rejecting update.\n", iot_hub_car.state.max_speed);
+                (void)printf("Desired `max_speed` of %" PRIu64 " exceeds device capability. Rejecting update.\n", iot_hub_car.state.max_speed);
             }
             else
             {
                 uint64_t temp_value = device_car.state.max_speed;
                 device_car.state.max_speed = iot_hub_car.state.max_speed;
-                (void)printf("The device client updated `%s` locally from %ld to %ld.\n", twin_property_state_max_speed_name, temp_value, iot_hub_car.state.max_speed);
+                (void)printf("The device client updated `%s` locally from %" PRIu64 " to %" PRIu64 ".\n", twin_property_state_max_speed_name, temp_value, iot_hub_car.state.max_speed);
                 update = true;
             }
         }
@@ -533,7 +521,7 @@ static void twin_reported_properties_callback(int status_code, void* userContext
 static void send_telemetry_confirm_callback(IOTHUB_CLIENT_CONFIRMATION_RESULT result, void* userContextCallback)
 {
     uint64_t* id = (uint64_t*)userContextCallback;
-    (void)printf("\nsend_telemetry_confirm_callback: telemetry_message_id: %lu, Result %s\n\n", *id, MU_ENUM_TO_STRING(IOTHUB_CLIENT_CONFIRMATION_RESULT, result));
+    (void)printf("\nsend_telemetry_confirm_callback: telemetry_message_id: %" PRIu64 ", Result %s\n\n", *id, MU_ENUM_TO_STRING(IOTHUB_CLIENT_CONFIRMATION_RESULT, result));
 }
 
 static IOTHUBMESSAGE_DISPOSITION_RESULT receive_c2d_message_callback(IOTHUB_MESSAGE_HANDLE message, void* user_context)
@@ -840,7 +828,7 @@ static void build_cbor_reported_property(uint8_t* reported_property_payload, siz
             rc = cbor_encode_uint(&manufacturer_map, device_car.manufacturer.year);
             if (rc)
             {
-                (void)printf("Failed to encode int '%lu': CborError %d.\n", device_car.manufacturer.year, rc);
+                (void)printf("Failed to encode int '%" PRIu64 "': CborError %d.\n", device_car.manufacturer.year, rc);
                 exit(rc);
             }
 
@@ -875,7 +863,7 @@ static void build_cbor_reported_property(uint8_t* reported_property_payload, siz
             rc = cbor_encode_uint(&state_map, device_car.state.max_speed);
             if (rc)
             {
-                (void)printf("Failed to encode int '%lu': CborError %d.\n", device_car.state.max_speed, rc);
+                (void)printf("Failed to encode int '%" PRIu64 "': CborError %d.\n", device_car.state.max_speed, rc);
                 exit(rc);
             }
 
