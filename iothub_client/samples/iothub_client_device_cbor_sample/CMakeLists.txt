@@ -28,13 +28,13 @@ if(${use_sample_trusted_cert})
         PUBLIC
             SET_TRUSTED_CERT_IN_SAMPLES
     )
-    target_include_directories(iothub_client_device_cbor_sample
-        PRIVATE
-            ${PROJECT_SOURCE_DIR}/certs
-    )
     target_sources(iothub_client_device_cbor_sample
         PRIVATE
             ${PROJECT_SOURCE_DIR}/certs/certs.c
+    )
+    target_include_directories(iothub_client_device_cbor_sample
+        PRIVATE
+            ${PROJECT_SOURCE_DIR}/certs
     )
 endif()
 
@@ -49,7 +49,6 @@ find_path(TINYCBOR_INCLUDE_DIR cbor.h
         elseif(UNIX) tinycbor #/usr/local/include/tinycbor
         endif()
 )
-
 target_include_directories(iothub_client_device_cbor_sample
     PRIVATE
         ${TINYCBOR_INCLUDE_DIR}
