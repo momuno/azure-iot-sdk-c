@@ -447,7 +447,6 @@ static void get_twin_async_callback(DEVICE_TWIN_UPDATE_STATE update_state, const
 static void twin_desired_properties_callback(DEVICE_TWIN_UPDATE_STATE update_state, const unsigned char* payload, size_t size, void* userContextCallback)
 {
     (void)userContextCallback;
-    bool update = false;
 
     (void)printf("\ntwin_desired_properties_callback payload: ");
     for (size_t i = 0; i < size; ++i)
