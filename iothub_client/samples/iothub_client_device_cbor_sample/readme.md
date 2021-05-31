@@ -4,7 +4,7 @@
 
 This [sample](https://github.com/Azure/azure-iot-sdk-c/tree/master/iothub_client/samples/paho_iot_hub_cbor_c2d_telemetry_twin_sample/paho_iot_hub_cbor_c2d_telemetry_twin_sample.c) utilizes the Azure IoT Hub to get the device twin document, send a reported property message, and receive desired property messages all in CBOR. It also shows how to set the content type system property for C2D or telemetry messaging. After 10 attempts to receive a message, the sample will exit.
 
-To run this sample, Intel's MIT licensed [TinyCBOR](https://github.com/intel/tinycbor) library must be installed. Please see below for instructions. The Embedded C SDK is not dependent on any particular CBOR library.
+To run this sample, Intel's MIT licensed [TinyCBOR](https://github.com/intel/tinycbor) library must be installed. Please see below for instructions. The Azure IoT C SDK is not dependent on any particular CBOR library.
 
 ## Step 1: Prerequisites
 
@@ -55,16 +55,16 @@ Follow [these instructions](https://github.com/Azure/azure-iot-sdk-c/blob/master
 
 - Device Twin:
 
-    There are three desired properties supported for this sample: `change_oil_remainder`, `state`:`max_speed`, and `state`:`software_version`.
+    There are three desired properties supported for this sample: `change_oil_reminder`, `state.allowed_max_speed`, and `state.software_version`.
 
     To send a device twin desired property message, select your device's "Device Twin" tab in the Azure Portal of your IoT Hub. Add one of the avilable desired properties along with a corresponding value of the supported value type to the `desired` section of the twin JSON. Select "Save" to update the twin document and send the twin message to the device. The IoT Hub will translate the twin JSON into CBOR for the device to consume and decode.
 
     ```json
     "properties": {
         "desired": {
-            "change_oil_remainder": true,
+            "change_oil_reminder": true,
             "state": {
-                "max_speed": 200,
+                "allowed_max_speed": 200,
                 "software_version": 4
             }
         }

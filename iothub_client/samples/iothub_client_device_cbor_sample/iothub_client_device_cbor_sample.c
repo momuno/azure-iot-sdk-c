@@ -23,12 +23,14 @@
 #define MAX_MESSAGE_COUNT 10
 #define TIMEOUT_RECEIVE_MS (30 * 1000)
 
+#define CAR_MAX_SPEED 260
+
 // Trusted Cert -- Turn on via build flag
 #ifdef SET_TRUSTED_CERT_IN_SAMPLES
     #include "certs.h"
 #endif
 
-// Transport Layer Protocal -- Uncomment the protocol you wish to use.
+// Transport Layer Protocol -- Uncomment the protocol you wish to use.
 #define SAMPLE_MQTT
 //#define SAMPLE_MQTT_OVER_WEBSOCKETS
 
@@ -42,7 +44,7 @@
 
 /**
  * The content type system property for C2D and/or telemetry messages will appear as a key-value
- * pair appended to the topic. They key is SDK-defined as `$.ct`, and URL-encoded as `%24.ct`. The
+ * pair appended to the topic. The key is SDK-defined as `$.ct` and URL-encoded as `%24.ct`. The
  * value is application-defined and must be agreed upon between the device and service side
  * applications. Examples for this value include `text/plain` and `application/json`. To
  * demonstrate setting the content type system property, this sample uses `application/cbor`.
@@ -51,7 +53,7 @@
 #define CONTENT_TYPE_C2D "application/cbor" // application-defined
 #define CONTENT_TYPE_TELEMETRY "application/cbor" // application-defined
 
-// Connection String -- Paste in the your iothub device connection string.
+// Connection String -- Paste in the iothub device connection string.
 static const char* connection_string = "[device connection string]";
 
 static IOTHUB_DEVICE_CLIENT_HANDLE iothub_client_handle;
@@ -71,7 +73,7 @@ static char* twin_property_manufacturer_make_name = "make";
 static char* twin_property_manufacturer_model_name = "model";
 static char* twin_property_manufacturer_year_name = "year";
 static char* twin_property_state_name = "state";
-static char* twin_property_state_max_speed_name = "max_speed";
+static char* twin_property_state_allowed_max_speed_name = "allowed_max_speed";
 static char* twin_property_state_software_version_name = "software_version";
 static char* twin_property_state_vanity_plate_name = "vanity_plate";
 static char* twin_property_change_oil_reminder_name = "change_oil_reminder";
@@ -82,29 +84,29 @@ typedef struct MANUFACTURER_TAG
     char* make;                 // reported property
     char* model;                // reported property
     uint64_t year;              // reported property
-} Manufacturer;
+} MANUFACTURER;
 
 typedef struct STATE_TAG
 {
-    uint64_t max_speed;         // desired/reported property
+    uint64_t allowed_max_speed; // desired/reported property
     double software_version;    // desired/reported property
     char* vanity_plate;         // reported property
-} State;
+} STATE;
 
 typedef struct CAR_TAG
 {
     bool change_oil_reminder;   // desired/reported property
     char* last_oil_change_date; // reported property
-    Manufacturer manufacturer;  // reported property
-    State state;                // desired/reported property
-} Car;
+    MANUFACTURER manufacturer;  // reported property
+    STATE state;                // desired/reported property
+} CAR;
 
-static Car device_car = { .change_oil_reminder = false,
+static CAR device_car = { .change_oil_reminder = false,
                           .last_oil_change_date = "May 4, 2016",
                           .manufacturer = { .make = "Fabrikam",
                                             .model = "sedan",
                                             .year = 2014 },
-                          .state = { .max_speed = 100,
+                          .state = { .allowed_max_speed = 100,
                                      .software_version = 1.1,
                                      .vanity_plate = "1T1" } };
 
@@ -112,18 +114,20 @@ static Car device_car = { .change_oil_reminder = false,
 static void create_and_configure_device_client(void);
 static void connect_device_client_send_and_receive_messages(void);
 static void disconnect_device_client(void);
-static void send_telemetry(void);
 
+static void send_telemetry(void);
+static void update_properties(CAR* new_car);
+static void send_reported_property();
 static void connection_status_callback(IOTHUB_CLIENT_CONNECTION_STATUS result, IOTHUB_CLIENT_CONNECTION_STATUS_REASON reason, void* user_context);
 static void get_twin_async_callback(DEVICE_TWIN_UPDATE_STATE update_state, const unsigned char* payload, size_t size, void* userContextCallback);
 static void twin_desired_properties_callback(DEVICE_TWIN_UPDATE_STATE update_state, const unsigned char* payload, size_t size, void* userContextCallback);
 static void twin_reported_properties_callback(int status_code, void* userContextCallback);
 static void send_telemetry_confirm_callback(IOTHUB_CLIENT_CONFIRMATION_RESULT result, void* userContextCallback);
 static IOTHUBMESSAGE_DISPOSITION_RESULT receive_c2d_message_callback(IOTHUB_MESSAGE_HANDLE message, void* user_context);
-
-static bool parse_cbor_desired_property(DEVICE_TWIN_UPDATE_STATE update_state, const unsigned char* payload, Car* out_car);
+static bool parse_cbor_desired_property(DEVICE_TWIN_UPDATE_STATE update_state, const unsigned char* payload, CAR* out_car);
 static void build_cbor_reported_property(uint8_t* reported_property_payload, size_t reported_property_payload_size, size_t* out_reported_property_payload_length);
 static void build_cbor_telemetry(uint8_t* telemetry_payload, size_t telemetry_payload_size, size_t* out_telemetry_payload_length);
+
 
 /*
  * This sample utilizes the Azure IoT Hub to get the device twin document, send a reported
@@ -131,12 +135,12 @@ static void build_cbor_telemetry(uint8_t* telemetry_payload, size_t telemetry_pa
  * how to set the content type system property for C2D and telemetry messaging. After 10 attempts to
  * receive a C2D or desired property message, the sample will exit.
  *
- * To run this sample, Intel's MIT licensed TinyCBOR library must be installed. The Embedded C SDK
+ * To run this sample, Intel's MIT licensed TinyCBOR library must be installed. The Azure IoT C SDK
  * is not dependent on any particular CBOR library. SAS authentication is used.
  *
  * Device Twin:
- * There are three desired properties supported for this sample: `change_oil_remainder`,
- * `state`.`max_speed`, and `state`.`software_version`. To send a device twin desired property
+ * There are three desired properties supported for this sample: `change_oil_reminder`,
+ * `state.allowed_max_speed`, and `state.software_version`. To send a device twin desired property
  * message, select your device's Device Twin tab in the Azure Portal of your IoT Hub. Add one of the
  * available desired properties along with a corresponding value of the supported value type to the
  * `desired` section of the twin JSON. Select Save to update the twin document and send the twin
@@ -145,9 +149,9 @@ static void build_cbor_telemetry(uint8_t* telemetry_payload, size_t telemetry_pa
  *
  * "properties": {
  *     "desired": {
- *         "change_oil_remainder": true,
+ *         "change_oil_reminder": true,
  *         "state": {
- *             "max_speed": 200,
+ *             "allowed_max_speed": 200,
  *             "software_version": 4.2
  *         }
  *     }
@@ -265,7 +269,7 @@ static void connect_device_client_send_and_receive_messages(void)
         exit(rc);
     }
 
-    // Set callback for GET twin document request. - Approach #1 to requesting the twin document.
+    // Set callback for GET twin document request.
     // Send asynchronous GET request for twin document. Connection will occur here.
     rc = IoTHubDeviceClient_GetTwinAsync(iothub_client_handle, get_twin_async_callback, NULL);
     if (rc != IOTHUB_CLIENT_OK)
@@ -274,7 +278,7 @@ static void connect_device_client_send_and_receive_messages(void)
         exit(rc);
     }
 
-    // Set callback for twin desired property PATCH messages from IoT Hub. - Approch #2 to requesting the twin document.
+    // Set callback for twin desired property PATCH messages from IoT Hub.
     // Sends GET request for twin document as part of setting the callback.
     rc = IoTHubDeviceClient_SetDeviceTwinCallback(iothub_client_handle, twin_desired_properties_callback, NULL);
     if (rc != IOTHUB_CLIENT_OK)
@@ -290,8 +294,6 @@ static void connect_device_client_send_and_receive_messages(void)
         (void)printf("Failed to set the C2D message callback: return code %d.\n", rc);
         exit(rc);
     }
-
-    send_telemetry();
 
     // Wait for desired property PATCH messages or C2D messages. Send Telemetry.
     for (uint8_t message_count = 0; message_count < MAX_MESSAGE_COUNT; message_count++)
@@ -344,6 +346,62 @@ static void send_telemetry(void)
     telemetry_message_id++; // Increase for next telemetry message.
 }
 
+
+static void update_properties(CAR* new_car)
+{
+    // Update device_car from twin desired properties received from IoT Hub.
+    // change_oil_reminder
+    {
+        bool old_value = device_car.change_oil_reminder;
+        device_car.change_oil_reminder = new_car->change_oil_reminder;
+        (void)printf("The device client updated `%s` locally from %s to %s.\n", twin_property_change_oil_reminder_name, old_value ? "true" : "false", device_car.change_oil_reminder ? "true" : "false");
+    }
+
+    // state.allowed_max_speed
+    if (new_car->state.allowed_max_speed == 0)
+    {
+        (void)printf("`allowed_max_speed` cannot be 0. Rejecting update.\n");
+    }
+    else
+    {
+        if (new_car->state.allowed_max_speed > CAR_MAX_SPEED)
+        {
+            (void)printf("Desired `allowed_max_speed` of %" PRIu64 " exceeds device capability. Rejecting update.\n", new_car->state.allowed_max_speed);
+        }
+        else
+        {
+            uint64_t old_value = device_car.state.allowed_max_speed;
+            device_car.state.allowed_max_speed = new_car->state.allowed_max_speed;
+            (void)printf("The device client updated `%s` locally from %" PRIu64 " to %" PRIu64 ".\n", twin_property_state_allowed_max_speed_name, old_value, new_car->state.allowed_max_speed);
+        }
+    }
+
+    // state.software_version
+    if (new_car->state.software_version <= 0)
+    {
+        (void)printf("`software_version` cannot be 0.0 or negative. Rejecting update.\n");
+    }
+    else
+    {
+        double old_value = device_car.state.software_version;
+        device_car.state.software_version = new_car->state.software_version;
+        (void)printf("The device client updated `%s` locally from %.*f to %.*f.\n", twin_property_state_software_version_name, 1, old_value, 1, new_car->state.software_version);
+    }
+}
+
+static void send_reported_property()
+{
+    // Send reported properties to IoT Hub.
+    (void)printf("Reporting properties to IoT Hub.\n");
+    build_cbor_reported_property(reported_property_buffer, REPORTED_PROPERTY_BUFFER_SIZE, &reported_property_length);
+    int rc = IoTHubDeviceClient_SendReportedState(iothub_client_handle, reported_property_buffer, reported_property_length, twin_reported_properties_callback, NULL);
+    if (rc != IOTHUB_CLIENT_OK)
+    {
+        (void)printf("Failed to send a reported property PATCH request to the IoT Hub: return code %d.\n", rc);
+        exit(rc);
+    }
+}
+
 //
 // Callbacks
 //
@@ -374,58 +432,14 @@ static void get_twin_async_callback(DEVICE_TWIN_UPDATE_STATE update_state, const
     (void)printf("\n");
 
     // Parse the twin desired properties received from IoT Hub.
-    Car iot_hub_car;
-    memset(&iot_hub_car, 0, sizeof(Car));
-    parse_cbor_desired_property(update_state, payload, &iot_hub_car);
-
-    // Update device_car from twin desired properties received from IoT Hub.
-    // change_oil_reminder
+    CAR iot_hub_car;
+    memset(&iot_hub_car, 0, sizeof(CAR));
+    if (parse_cbor_desired_property(update_state, payload, &iot_hub_car))
     {
-        bool temp_value = device_car.change_oil_reminder;
-        device_car.change_oil_reminder = iot_hub_car.change_oil_reminder;
-        (void)printf("The device client updated `%s` locally from %s to %s.\n", twin_property_change_oil_reminder_name, temp_value ? "true" : "false", device_car.change_oil_reminder ? "true" : "false");
+        update_properties(&iot_hub_car);
     }
 
-    // state.max_speed
-    if ((iot_hub_car.state.max_speed != 0))
-    {
-        if (iot_hub_car.state.max_speed > 260)
-        {
-            (void)printf("Desired `max_speed` of %" PRIu64 " exceeds device capability. Rejecting update.\n", iot_hub_car.state.max_speed);
-        }
-        else
-        {
-            uint64_t temp_value = device_car.state.max_speed;
-            device_car.state.max_speed = iot_hub_car.state.max_speed;
-            (void)printf("The device client updated `%s` locally from %" PRIu64 " to %" PRIu64 ".\n", twin_property_state_max_speed_name, temp_value, iot_hub_car.state.max_speed);
-        }
-    }
-    else
-    {
-        (void)printf("`max_speed` cannot be 0. Rejecting update.\n");
-    }
-
-    // state.software_version
-    if (iot_hub_car.state.software_version != 0)
-    {
-        double temp_value = device_car.state.software_version;
-        device_car.state.software_version = iot_hub_car.state.software_version;
-        (void)printf("The device client updated `%s` locally from %.*f to %.*f.\n", twin_property_state_software_version_name, 1, temp_value, 1, iot_hub_car.state.software_version);
-    }
-    else
-    {
-        (void)printf("`software_version` cannot be 0.0. Rejecting update.\n");
-    }
-
-    // Send reported properties to IoT Hub.
-    (void)printf("Reporting properties to IoT Hub.\n");
-    build_cbor_reported_property(reported_property_buffer, REPORTED_PROPERTY_BUFFER_SIZE, &reported_property_length);
-    int rc = IoTHubDeviceClient_SendReportedState(iothub_client_handle, reported_property_buffer, reported_property_length, twin_reported_properties_callback, NULL);
-    if (rc != IOTHUB_CLIENT_OK)
-    {
-        (void)printf("Failed to send a reported property PATCH request to the IoT Hub: return code %d.\n", rc);
-        exit(rc);
-    }
+    send_reported_property();
 
     (void)printf("\n"); // Formatting
 }
@@ -443,70 +457,12 @@ static void twin_desired_properties_callback(DEVICE_TWIN_UPDATE_STATE update_sta
     (void)printf("\n");
 
     // Parse the twin desired properties received from IoT Hub.
-    Car iot_hub_car;
-    memset(&iot_hub_car, 0, sizeof(Car));
-    parse_cbor_desired_property(update_state, payload, &iot_hub_car);
-
-    // Update device_car if twin desired properties received from IoT Hub are different than what it stored on device.
-    // change_oil_reminder
-    if (device_car.change_oil_reminder != iot_hub_car.change_oil_reminder)
+    CAR iot_hub_car;
+    memset(&iot_hub_car, 0, sizeof(CAR));
+    if (parse_cbor_desired_property(update_state, payload, &iot_hub_car))
     {
-        bool temp_value = device_car.change_oil_reminder;
-        device_car.change_oil_reminder = iot_hub_car.change_oil_reminder;
-        (void)printf("The device client updated `%s` locally from %s to %s.\n", twin_property_change_oil_reminder_name, temp_value ? "true" : "false", device_car.change_oil_reminder ? "true" : "false");
-        update = true;
-    }
-
-    // state.max_speed
-    if (iot_hub_car.state.max_speed != 0)
-    {
-        if (device_car.state.max_speed != iot_hub_car.state.max_speed)
-        {
-            if (iot_hub_car.state.max_speed > 260)
-            {
-                (void)printf("Desired `max_speed` of %" PRIu64 " exceeds device capability. Rejecting update.\n", iot_hub_car.state.max_speed);
-            }
-            else
-            {
-                uint64_t temp_value = device_car.state.max_speed;
-                device_car.state.max_speed = iot_hub_car.state.max_speed;
-                (void)printf("The device client updated `%s` locally from %" PRIu64 " to %" PRIu64 ".\n", twin_property_state_max_speed_name, temp_value, iot_hub_car.state.max_speed);
-                update = true;
-            }
-        }
-    }
-    else
-    {
-        (void)printf("`max_speed` cannot be 0. Rejecting update.\n");
-    }
-
-    // state.software_version
-    if (iot_hub_car.state.software_version != 0)
-    {
-        if (device_car.state.software_version != iot_hub_car.state.software_version)
-        {
-            double temp_value = device_car.state.software_version;
-            device_car.state.software_version = iot_hub_car.state.software_version;
-            (void)printf("The device client updated `%s` locally from %.*f to %.*f.\n", twin_property_state_software_version_name, 1, temp_value, 1, iot_hub_car.state.software_version);
-            update = true;
-        }
-    }
-    else
-    {
-        (void)printf("`software_version` cannot be 0.0. Rejecting update.\n");
-    }
-
-    // If any property updates, send reported properties to IoT Hub.
-    if (update)
-    {
-        (void)printf("Reporting properties to IoT Hub.\n");
-        build_cbor_reported_property(reported_property_buffer, REPORTED_PROPERTY_BUFFER_SIZE, &reported_property_length);
-        int rc = IoTHubDeviceClient_SendReportedState(iothub_client_handle, reported_property_buffer, reported_property_length, twin_reported_properties_callback, NULL);
-        if (rc != IOTHUB_CLIENT_OK)
-        {
-            (void)printf("Failed to send a reported property PATCH request to the IoT Hub: return code %d.\n", rc);
-            exit(rc);
-        }
+        update_properties(&iot_hub_car);
+        send_reported_property();
     }
 
     (void)printf("\n"); // Formatting
@@ -528,17 +484,16 @@ static IOTHUBMESSAGE_DISPOSITION_RESULT receive_c2d_message_callback(IOTHUB_MESS
 {
     (void)user_context;
 
-
     const char* content_type = IoTHubMessage_GetContentTypeSystemProperty(message);
     if (content_type == NULL)
     {
-        (void)printf("Content type sytem property could not be found in topic.\n");
+        (void)printf("Content type system property could not be found in topic.\n");
     }
     else
     {
         // The content type system property value is application-defined and must reflect how the
         // service application has chosen to define it.
-        if (strcmp(content_type, CONTENT_TYPE_C2D) == 0)
+        if (strncmp(content_type, CONTENT_TYPE_C2D, strlen(CONTENT_TYPE_C2D)) == 0)
         {
             (void)printf("The device client received expected system property content type value: %s.\n", CONTENT_TYPE_C2D);
 
@@ -575,17 +530,17 @@ static IOTHUBMESSAGE_DISPOSITION_RESULT receive_c2d_message_callback(IOTHUB_MESS
 //
 // Encoding/Decoding with CBOR library
 //
-static bool parse_cbor_desired_property(DEVICE_TWIN_UPDATE_STATE update_state, const unsigned char* payload, Car* out_car)
+static bool parse_cbor_desired_property(DEVICE_TWIN_UPDATE_STATE update_state, const unsigned char* payload, CAR* out_car)
 {
     CborError rc; // CborNoError == 0
-    bool result;
+    bool result = false;
 
     CborParser parser;
     CborValue root;
     CborValue state_root;
 
     CborValue change_oil_reminder;
-    CborValue max_speed;
+    CborValue allowed_max_speed;
     CborValue software_version;
 
     rc = cbor_parser_init(payload, strlen((char*)payload), 0, &parser, &root);
@@ -596,7 +551,7 @@ static bool parse_cbor_desired_property(DEVICE_TWIN_UPDATE_STATE update_state, c
     }
 
     // Check if this is the full twin document or only the desired properties.
-    if (update_state == DEVICE_TWIN_UPDATE_COMPLETE) // full twin document (desried and reported)
+    if (update_state == DEVICE_TWIN_UPDATE_COMPLETE) // full twin document (desired and reported)
     {
         rc = cbor_value_map_find_value(&root, twin_desired_property, &root);
         if (rc)
@@ -632,13 +587,11 @@ static bool parse_cbor_desired_property(DEVICE_TWIN_UPDATE_STATE update_state, c
         else
         {
             (void)printf("`%s` property value was not a boolean.\n", twin_property_change_oil_reminder_name);
-            result = false;
         }
     }
     else
     {
         (void)printf("`%s` property name was not found in desired property message.\n", twin_property_change_oil_reminder_name);
-        result = false;
     }
 
     // state
@@ -650,39 +603,37 @@ static bool parse_cbor_desired_property(DEVICE_TWIN_UPDATE_STATE update_state, c
     }
     if (cbor_value_is_valid(&state_root))
     {
-        // state.max_speed
-        rc = cbor_value_map_find_value(&state_root, twin_property_state_max_speed_name, &max_speed);
+        // state.allowed_max_speed
+        rc = cbor_value_map_find_value(&state_root, twin_property_state_allowed_max_speed_name, &allowed_max_speed);
         if (rc)
         {
-            (void)printf("Error when searching for %s: CborError %d.\n", twin_property_state_max_speed_name, rc);
+            (void)printf("Error when searching for %s: CborError %d.\n", twin_property_state_allowed_max_speed_name, rc);
             exit(rc);
         }
-        if (cbor_value_is_valid(&max_speed))
+        if (cbor_value_is_valid(&allowed_max_speed))
         {
-            if (cbor_value_is_unsigned_integer(&max_speed))
+            if (cbor_value_is_unsigned_integer(&allowed_max_speed))
             {
-                rc = cbor_value_get_uint64(&max_speed, &out_car->state.max_speed);
+                rc = cbor_value_get_uint64(&allowed_max_speed, &out_car->state.allowed_max_speed);
                 if (rc)
                 {
-                    (void)printf("Failed to get uint64 value of property %s: CborError %d.\n", twin_property_state_max_speed_name, rc);
+                    (void)printf("Failed to get uint64 value of property %s: CborError %d.\n", twin_property_state_allowed_max_speed_name, rc);
                     exit(rc);
                 }
                 else
                 {
-                    (void)printf("Parsed desired property `%s`: %" PRIu64 "\n", twin_property_state_max_speed_name, out_car->state.max_speed);
+                    (void)printf("Parsed desired property `%s`: %" PRIu64 "\n", twin_property_state_allowed_max_speed_name, out_car->state.allowed_max_speed);
                     result = true;
                 }
             }
             else
             {
-                (void)printf("`%s` property value was not an unsigned integer.\n", twin_property_state_max_speed_name);
-                result = false;
+                (void)printf("`%s` property value was not an unsigned integer.\n", twin_property_state_allowed_max_speed_name);
             }
         }
         else
         {
-            (void)printf("`%s` property name was not found in desired property message.\n", twin_property_state_max_speed_name);
-            result = false;
+            (void)printf("`%s` property name was not found in desired property message.\n", twin_property_state_allowed_max_speed_name);
         }
 
         // state.software_version
@@ -711,19 +662,16 @@ static bool parse_cbor_desired_property(DEVICE_TWIN_UPDATE_STATE update_state, c
             else
             {
                 (void)printf("`%s` property value was not a double.\n", twin_property_state_software_version_name);
-                result = false;
             }
         }
         else
         {
             (void)printf("`%s` property name was not found in desired property message.\n", twin_property_state_software_version_name);
-            result = false;
         }
     }
     else
     {
         (void)printf("`%s` property name was not found in desired property message.\n", twin_property_state_name);
-        result = false;
     }
 
     return result;
@@ -853,17 +801,17 @@ static void build_cbor_reported_property(uint8_t* reported_property_payload, siz
             exit(rc);
         }
 
-            // state.max_speed
-            rc = cbor_encode_text_string(&state_map, twin_property_state_max_speed_name, strlen(twin_property_state_max_speed_name));
+            // state.allowed_max_speed
+            rc = cbor_encode_text_string(&state_map, twin_property_state_allowed_max_speed_name, strlen(twin_property_state_allowed_max_speed_name));
             if (rc)
             {
-                (void)printf("Failed to encode text string '%s': CborError %d.\n", twin_property_state_max_speed_name, rc);
+                (void)printf("Failed to encode text string '%s': CborError %d.\n", twin_property_state_allowed_max_speed_name, rc);
                 exit(rc);
             }
-            rc = cbor_encode_uint(&state_map, device_car.state.max_speed);
+            rc = cbor_encode_uint(&state_map, device_car.state.allowed_max_speed);
             if (rc)
             {
-                (void)printf("Failed to encode int '%" PRIu64 "': CborError %d.\n", device_car.state.max_speed, rc);
+                (void)printf("Failed to encode int '%" PRIu64 "': CborError %d.\n", device_car.state.allowed_max_speed, rc);
                 exit(rc);
             }
 
@@ -914,43 +862,43 @@ static void build_cbor_reported_property(uint8_t* reported_property_payload, siz
 
 static void build_cbor_telemetry(uint8_t* telemetry_payload, size_t telemetry_payload_size, size_t* out_telemetry_payload_length)
 {
-  float engine_temperature = 200.0f + ((float)rand() / RAND_MAX) * 5.0f;
+    float engine_temperature = 200.0f + ((float)rand() / RAND_MAX) * 5.0f;
 
-  CborError rc; // CborNoError == 0
+    CborError rc; // CborNoError == 0
 
-  CborEncoder encoder;
-  CborEncoder encoder_map;
+    CborEncoder encoder;
+    CborEncoder encoder_map;
 
-  cbor_encoder_init(&encoder, telemetry_payload, telemetry_payload_size, 0);
+    cbor_encoder_init(&encoder, telemetry_payload, telemetry_payload_size, 0);
 
-  rc = cbor_encoder_create_map(&encoder, &encoder_map, 1);
-  if (rc)
-  {
-    (void)printf("Failed to create map: CborError %d.", rc);
-    exit(rc);
-  }
+    rc = cbor_encoder_create_map(&encoder, &encoder_map, 1);
+    if (rc)
+    {
+        (void)printf("Failed to create map: CborError %d.", rc);
+        exit(rc);
+    }
 
-  rc = cbor_encode_text_string(
-      &encoder_map, telemetry_property_engine_temperature_name, strlen(telemetry_property_engine_temperature_name));
-  if (rc)
-  {
-    (void)printf("Failed to encode text string '%s': CborError %d.", telemetry_property_engine_temperature_name, rc);
-    exit(rc);
-  }
+    rc = cbor_encode_text_string(
+        &encoder_map, telemetry_property_engine_temperature_name, strlen(telemetry_property_engine_temperature_name));
+    if (rc)
+    {
+        (void)printf("Failed to encode text string '%s': CborError %d.", telemetry_property_engine_temperature_name, rc);
+        exit(rc);
+    }
 
-  rc = cbor_encode_double(&encoder_map, engine_temperature);
-  if (rc)
-  {
-    (void)printf("Failed to encode double '%.*f': CborError %d.", 2, engine_temperature, rc);
-    exit(rc);
-  }
+    rc = cbor_encode_double(&encoder_map, engine_temperature);
+    if (rc)
+    {
+        (void)printf("Failed to encode double '%.*f': CborError %d.", 2, engine_temperature, rc);
+        exit(rc);
+    }
 
-  rc = cbor_encoder_close_container(&encoder, &encoder_map);
-  if (rc)
-  {
-    (void)printf("Failed to close container: CborError %d.", rc);
-    exit(rc);
-  }
+    rc = cbor_encoder_close_container(&encoder, &encoder_map);
+    if (rc)
+    {
+        (void)printf("Failed to close container: CborError %d.", rc);
+        exit(rc);
+    }
 
-  *out_telemetry_payload_length = cbor_encoder_get_buffer_size(&encoder, telemetry_payload);
+    *out_telemetry_payload_length = cbor_encoder_get_buffer_size(&encoder, telemetry_payload);
 }
