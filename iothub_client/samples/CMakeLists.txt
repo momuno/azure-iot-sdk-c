@@ -31,6 +31,18 @@ if(${use_http})
 endif()
 
 if(${use_mqtt})
+    # Only include CBOR sample if tinycbor has been found
+    find_library(tinycbor tinycbor
+        if(WIN32)
+            PATH_SUFFIXES tinycbor/lib lib
+        endif()
+    )
+    if (${tinycbor} STREQUAL "tinycbor-NOTFOUND")
+        message("-- Could NOT find tinycbor. Not compiling iothub_client_device_cbor_sample.")
+    else()
+        add_sample_directory(iothub_client_device_cbor_sample)
+    endif()
+
     if(LINUX)
         add_sample_directory(iothub_client_sample_mqtt_dm)
     endif()
