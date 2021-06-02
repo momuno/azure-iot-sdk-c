@@ -24,7 +24,7 @@ add_executable(iothub_client_device_cbor_sample
 )
 
 if(${use_sample_trusted_cert})
-    target_add_compile_definitions(iothub_client_device_cbor_sample
+    target_compile_definitions(iothub_client_device_cbor_sample
         PUBLIC
             SET_TRUSTED_CERT_IN_SAMPLES
     )
