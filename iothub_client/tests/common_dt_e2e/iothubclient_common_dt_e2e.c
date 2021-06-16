@@ -174,19 +174,45 @@ typedef struct DEVICE_DESIRED_DATA_TAG
 } DEVICE_DESIRED_DATA;
 
 
-static const char *REPORTED_PAYLOAD_FORMAT = "{\"integer_property\": %d, \"string_property\": \"%s\", \"array\": [%d, \"%s\"] }";
-static char *malloc_and_fill_reported_payload(const char *string, int aint)
+static const char *REPORTED_PAYLOAD_JSON_FORMAT = "{\"integer_property\": %d, \"string_property\": \"%s\", \"array\": [%d, \"%s\"] }";
+static const char *REPORTED_PAYLOAD_CBOR_FORMAT = { 0xA3, 0x70, 0x69, 0x6E, 0x74, 0x65, 0x67, 0x65, 0x72, 0x5F, 0x70,
+                                                    0x72, 0x6F, 0x70, 0x65, 0x72, 0x74, 0x79, 0x05, 0x6F, 0x73, 0x74,
+                                                    0x72, 0x69, 0x6E, 0x67, 0x5F, 0x70, 0x72, 0x6F, 0x70, 0x65, 0x72,
+                                                    0x74, 0x79, 0x70, 0x48, 0x65, 0x6C, 0x6C, 0x6F, 0x20, 0x49, 0x6F,
+                                                    0x54, 0x20, 0x77, 0x6F, 0x72, 0x6C, 0x64, 0x21, 0x65, 0x61, 0x72,
+                                                    0x72, 0x61, 0x79, 0x82, 0x18, 0x75, 0x69, 0x47, 0x6F, 0x6F, 0x64,
+                                                    0x20, 0x62, 0x79, 0x65, 0x2E};
+                                                   //{"integer_property": 5, "string_property": "Hello IoT world!", "array": [117, "Good bye."]}
+static char *malloc_and_fill_reported_payload(const char *string, int aint, OPTION_TWIN_CONTENT_TYPE_VALUE twin_content_type)
 {
-    size_t  length = snprintf(NULL, 0, REPORTED_PAYLOAD_FORMAT, aint, string, aint, string);
-    char   *retValue = (char *) malloc(length + 1);
-    if (retValue == NULL)
+    char* retValue;
+    if (twin_content_type = OPTION_TWIN_CONTENT_TYPE_DEFAULT_JSON)
     {
-        LogError("malloc failed");
+        size_t length = snprintf(NULL, 0, REPORTED_PAYLOAD_CBOR_FORMAT, aint, string, aint, string);
+        retValue = (char*)malloc(length + 1);
+        if (retValue == NULL)
+        {
+            LogError("malloc failed");
+        }
+        else
+        {
+            (void)sprintf(retValue, REPORTED_PAYLOAD_CBOR_FORMAT, aint, string, aint, string);
+        }
     }
-    else
+    else // CBOR
     {
-        (void) sprintf(retValue, REPORTED_PAYLOAD_FORMAT, aint, string, aint, string);
+        size_t length = strlen(REPORTED_PAYLOAD_CBOR_FORMAT);
+        char* temp = (char*)malloc(length);
+        if (temp == NULL)
+        {
+            LogError("malloc failed");
+        }
+        else
+        {
+            retValue = (char *)memcpy(temp, REPORTED_PAYLOAD_CBOR_FORMAT, length);
+        }
     }
+
     return retValue;
 }
 
@@ -303,8 +329,6 @@ static void sendeventasync_on_device_or_module(IOTHUB_MESSAGE_HANDLE msgHandle)
     ASSERT_ARE_EQUAL(IOTHUB_CLIENT_RESULT, IOTHUB_CLIENT_OK, result, "SendEventAsync failed");
 }
 
-
-
 static void dt_e2e_update_twin(IOTHUB_SERVICE_CLIENT_DEVICE_TWIN_HANDLE serviceClientDeviceTwinHandle, IOTHUB_PROVISIONED_DEVICE* deviceToUse, const char* twinJson)
 {
     char* twinResponse;
@@ -347,8 +371,7 @@ static char* dt_e2e_get_twin_from_service(IOTHUB_SERVICE_CLIENT_DEVICE_TWIN_HAND
     return twinData;
 }
 
-
-void dt_e2e_send_reported_test(IOTHUB_CLIENT_TRANSPORT_PROVIDER protocol, IOTHUB_ACCOUNT_AUTH_METHOD accountAuthMethod)
+void dt_e2e_send_reported_test(IOTHUB_CLIENT_TRANSPORT_PROVIDER protocol, IOTHUB_ACCOUNT_AUTH_METHOD accountAuthMethod, OPTION_TWIN_CONTENT_TYPE_VALUE twin_content_type)
 {
     // arrange
     IOTHUB_PROVISIONED_DEVICE* deviceToUse = IoTHubAccount_GetDevice(g_iothubAcctInfo, accountAuthMethod);
@@ -359,8 +382,11 @@ void dt_e2e_send_reported_test(IOTHUB_CLIENT_TRANSPORT_PROVIDER protocol, IOTHUB
     // Create the IoT Hub Data
     dt_e2e_create_client_handle(deviceToUse, protocol);
 
+    // Set twin content-type option
+    setoption_on_device_or_module(OPTION_TWIN_CONTENT_TYPE, &twin_content_type, "Could not set the option for %s", OPTION_TWIN_CONTENT_TYPE);
+
     // generate the payload
-    char *buffer = malloc_and_fill_reported_payload(device->string_property, device->integer_property);
+    char *buffer = malloc_and_fill_reported_payload(device->string_property, device->integer_property, twin_content_type);
     ASSERT_IS_NOT_NULL(buffer, "failed to allocate and prepare the payload for SendReportedState");
 
     // act
@@ -408,15 +434,23 @@ void dt_e2e_send_reported_test(IOTHUB_CLIENT_TRANSPORT_PROVIDER protocol, IOTHUB
 
         char *twinData = dt_e2e_get_twin_from_service(serviceClientDeviceTwinHandle, deviceToUse);
 
-        JSON_Value *root_value = json_parse_string(twinData);
-        ASSERT_IS_NOT_NULL(root_value, "json_parse_string failed");
+        if (twin_content_type = OPTION_TWIN_CONTENT_TYPE_DEFAULT_JSON)
+        {
+            JSON_Value *root_value = json_parse_string(twinData);
+            ASSERT_IS_NOT_NULL(root_value, "json_parse_string failed");
 
-        JSON_Object *root_object = json_value_get_object(root_value);
-        const char *string_property = json_object_dotget_string(root_object, "properties.reported.string_property");
-        ASSERT_ARE_EQUAL(char_ptr, device->string_property, string_property, "string data retrieved differs from reported");
+            JSON_Object *root_object = json_value_get_object(root_value);
+            const char *string_property = json_object_dotget_string(root_object, "properties.reported.string_property");
+            ASSERT_ARE_EQUAL(char_ptr, device->string_property, string_property, "string data retrieved differs from reported");
 
-        int integer_property = (int) json_object_dotget_number(root_object, "properties.reported.integer_property");
-        ASSERT_ARE_EQUAL(int, device->integer_property, integer_property, "integer data retrieved differs from reported");
+            int integer_property = (int) json_object_dotget_number(root_object, "properties.reported.integer_property");
+            ASSERT_ARE_EQUAL(int, device->integer_property, integer_property, "integer data retrieved differs from reported");
+        }
+        else // CBOR
+        {
+            // TO DO: Must use Get reported section for this to work.  To complete with if-not-version implementation work.
+            ASSERT_ARE_EQUAL(char_ptr, REPORTED_PAYLOAD_CBOR_FORMAT, twinData, "twin cbor data retrieved differs from reported");
+        }
 
         (void) Unlock(device->lock);
 
@@ -431,22 +465,48 @@ void dt_e2e_send_reported_test(IOTHUB_CLIENT_TRANSPORT_PROVIDER protocol, IOTHUB
     }
 }
 
- 
+static const char *COMPLETE_DESIRED_PAYLOAD_JSON_FORMAT = "{\"properties\":{\"desired\":{\"integer_property\": %d, \"string_property\": \"%s\", \"array\": [%d, \"%s\"]}}}";
+static const char *COMPLETE_DESIRED_PAYLOAD_CBOR_FORMAT = { 0xA1, 0x6A, 0x70, 0x72, 0x6F, 0x70, 0x65, 0x72, 0x74, 0x69, 0x65,
+                                                            0x73, 0xA1, 0x67, 0x64, 0x65, 0x73, 0x69, 0x72, 0x65, 0x64, 0xA3,
+                                                            0x70, 0x69, 0x6E, 0x74, 0x65, 0x67, 0x65, 0x72, 0x5F, 0x70, 0x72,
+                                                            0x6F, 0x70, 0x65, 0x72, 0x74, 0x79, 0x05, 0x6F, 0x73, 0x74, 0x72,
+                                                            0x69, 0x6E, 0x67, 0x5F, 0x70, 0x72, 0x6F, 0x70, 0x65, 0x72, 0x74,
+                                                            0x79, 0x70, 0x48, 0x65, 0x6C, 0x6C, 0x6F, 0x20, 0x49, 0x6F, 0x54,
+                                                            0x20, 0x77, 0x6F, 0x72, 0x6C, 0x64, 0x21, 0x65, 0x61, 0x72, 0x72,
+                                                            0x61, 0x79, 0x82, 0x18, 0x75, 0x69, 0x47, 0x6F, 0x6F, 0x64, 0x20,
+                                                            0x62, 0x79, 0x65, 0x2E };
+                                                            //{"properties":{"desired":{"integer_property": 5, "string_property": "Hello IoT world!", "array": [117, "Good bye."]}}}
 
-
-static const char *COMPLETE_DESIRED_PAYLOAD_FORMAT = "{\"properties\":{\"desired\":{\"integer_property\": %d, \"string_property\": \"%s\", \"array\": [%d, \"%s\"]}}}";
-static char *malloc_and_fill_desired_payload(const char *string, int aint)
+static char* malloc_and_fill_desired_payload(const char *string, int aint, OPTION_TWIN_CONTENT_TYPE_VALUE twin_content_type)
 {
-    size_t  length = snprintf(NULL, 0, COMPLETE_DESIRED_PAYLOAD_FORMAT, aint, string, aint, string);
-    char   *retValue = (char *) malloc(length + 1);
-    if (retValue == NULL)
+    char* retValue;
+    if (twin_content_type = OPTION_TWIN_CONTENT_TYPE_DEFAULT_JSON)
     {
-        LogError("malloc failed");
+        size_t  ength = snprintf(NULL, 0, COMPLETE_DESIRED_PAYLOAD_JSON_FORMAT, aint, string, aint, string);
+        retValue = (char *)malloc(length + 1);
+        if (retValue == NULL)
+        {
+            LogError("malloc failed");
+        }
+        else
+        {
+            (void) sprintf(retValue, COMPLETE_DESIRED_PAYLOAD_JSON_FORMAT, aint, string, aint, string);
+        }
     }
-    else
+    else // CBOR
     {
-        (void) sprintf(retValue, COMPLETE_DESIRED_PAYLOAD_FORMAT, aint, string, aint, string);
+        size_t length = strlen(COMPLETE_DESIRED_PAYLOAD_CBOR_FORMAT);
+        char* temp = (char *)malloc(length);
+        if (temp == NULL)
+        {
+            LogError("malloc failed");
+        }
+        else
+        {
+            retValue = (char *)memcpy(temp, COMPLETE_DESIRED_PAYLOAD_CBOR_FORMAT, length);
+        }
     }
+
     return retValue;
 }
 
@@ -481,6 +541,27 @@ static char * malloc_and_copy_unsigned_char(const unsigned char* payload, size_t
 }
 
 static void deviceTwinCallback(DEVICE_TWIN_UPDATE_STATE update_state, const unsigned char* payload, size_t size, void* userContextCallback)
+{
+    LogInfo("Callback:: Received payload len=<%lu>, data=<%.*s>\n", (unsigned long)size, (int)size, payload);
+    DEVICE_DESIRED_DATA *device = (DEVICE_DESIRED_DATA *)userContextCallback;
+    if (Lock(device->lock) == LOCK_ERROR)
+    {
+        LogError("Lock failed");
+    }
+    else
+    {
+        device->update_state = update_state;
+        device->receivedCallBack = true;
+        if (device->cb_payload != NULL)
+        {
+            free(device->cb_payload);
+        }
+        device->cb_payload = malloc_and_copy_unsigned_char(payload, size);
+        (void) Unlock(device->lock);
+    }
+}
+
+static void deviceTwinCallbackCBOR(DEVICE_TWIN_UPDATE_STATE update_state, const unsigned char* payload, size_t size, void* userContextCallback)
 {
     LogInfo("Callback:: Received payload len=<%lu>, data=<%.*s>\n", (unsigned long)size, (int)size, payload);
     DEVICE_DESIRED_DATA *device = (DEVICE_DESIRED_DATA *)userContextCallback;
@@ -615,7 +696,7 @@ static int dt_e2e_gettwin_version(IOTHUB_SERVICE_CLIENT_DEVICE_TWIN_HANDLE servi
     return version;
 }
 
-void dt_e2e_get_complete_desired_test(IOTHUB_CLIENT_TRANSPORT_PROVIDER protocol, IOTHUB_ACCOUNT_AUTH_METHOD accountAuthMethod)
+void dt_e2e_get_complete_desired_test(IOTHUB_CLIENT_TRANSPORT_PROVIDER protocol, IOTHUB_ACCOUNT_AUTH_METHOD accountAuthMethod, OPTION_TWIN_CONTENT_TYPE_VALUE twin_content_type)
 {
     // arrange
     IOTHUB_PROVISIONED_DEVICE* deviceToUse = IoTHubAccount_GetDevice(g_iothubAcctInfo, accountAuthMethod);
@@ -625,8 +706,18 @@ void dt_e2e_get_complete_desired_test(IOTHUB_CLIENT_TRANSPORT_PROVIDER protocol,
 
     dt_e2e_create_client_handle(deviceToUse, protocol);
 
+    // Set twin content-type option
+    setoption_on_device_or_module(OPTION_TWIN_CONTENT_TYPE, &twin_content_type, "Could not set the option for %s", OPTION_TWIN_CONTENT_TYPE);
+
     // subscribe
-    setdevicetwincallback_on_device_or_module(deviceTwinCallback, device);
+    if (twin_content_type == OPTION_TWIN_CONTENT_TYPE_DEFAULT_JSON)
+    {
+        setdevicetwincallback_on_device_or_module(deviceTwinCallback, device);
+    }
+    else
+    {
+        setdevicetwincallback_on_device_or_module(deviceTwinCallbackCBOR, device);
+    }
 
     // Twin registrations to the cloud happen asyncronously because we're using the convenience layer.  There is an (unavoidable)
     // race potential in tests like this where we create handles and immediately invoke the service SDK.  Namely without this
@@ -649,7 +740,14 @@ void dt_e2e_get_complete_desired_test(IOTHUB_CLIENT_TRANSPORT_PROVIDER protocol,
     IOTHUB_SERVICE_CLIENT_DEVICE_TWIN_HANDLE serviceClientDeviceTwinHandle = IoTHubDeviceTwin_Create(iotHubServiceClientHandle);
     ASSERT_IS_NOT_NULL(serviceClientDeviceTwinHandle, "IoTHubDeviceTwin_Create failed");
 
-    int initial_twin_version = dt_e2e_gettwin_version(serviceClientDeviceTwinHandle, deviceToUse);
+    int initial_twin_version;
+    if (twin_content_type == OPTION_TWIN_CONTENT_TYPE_DEFAULT_JSON)
+    {
+        initial_twin_version = dt_e2e_gettwin_version(serviceClientDeviceTwinHandle, deviceToUse);
+    }
+
+    // With if-not-version implementation, $version will be associated with desired section.  Get that instead of whole twin doc and having to parse for version.
+    // Then can parse topic for version, and CBOR library won't be needed to parse twin.
 
     char *expected_desired_string = generate_unique_string();
     int   expected_desired_integer = generate_new_int();
@@ -828,6 +926,41 @@ void dt_e2e_get_twin_async_test(IOTHUB_CLIENT_TRANSPORT_PROVIDER protocol, IOTHU
     device_desired_deinit(deviceDesiredData);
 }
 
+// dt_e2e_send_content_type_test makes sure that when OPTION_CONTENT_TYPE is specified at creation time
+void dt_e2e_send_content_type_test(IOTHUB_CLIENT_TRANSPORT_PROVIDER protocol, IOTHUB_ACCOUNT_AUTH_METHOD accountAuthMethod, OPTION_METHOD_TWIN_CONTENT_TYPE_VALUE contentType)
+{
+    // arrange
+    IOTHUB_PROVISIONED_DEVICE* deviceToUse = IoTHubAccount_GetDevice(g_iothubAcctInfo, accountAuthMethod);
+
+    DEVICE_DESIRED_DATA *deviceDesiredData = device_desired_data_init();
+    ASSERT_IS_NOT_NULL(deviceDesiredData, "failed to create the device client data");
+
+    dt_e2e_create_client_handle(deviceToUse, protocol);
+    // Set the content type prior to any network I/O.  The caller passes the content type because it is
+    // is persisted on the Hub after initial set.
+    setoption_on_device_or_module(OPTION_METHOD_TWIN_CONTENT_TYPE, &contentType, "Cannot specify content type");
+
+    //Send a CBOR encoded reported property. Get resulting full twin CBOR-encoded document.
+    // JSON encoded: {"integer_property": 123, "string_property": "hello world!"}
+    // CBOR encoded (49 bytes): A270696E74656 765725F70726F7065727479187B6F737472696E675F70726F70657274796C68656C6C6F20776F726C6421
+    uint8_t reportedProperteies[] = A270696E74656765725F70726F7065727479187B6F737472696E675F70726F70657274796C68656C6C6F20776F726C6421;
+
+    sendreportedstate_on_device_or_module(reportedProperties, NULL);
+
+
+            uint8_t reportedProperties[CBOR_BUFFER_SIZE];
+            serializeToCBOR(&car, reportedProperties, CBOR_BUFFER_SIZE);
+            printf("Size of encoded CBOR: %zu\n", strlen(reportedProperties));
+
+    request_full_twin_and_wait_for_response(deviceToUse, deviceDesiredData);
+
+    // Parse Twin. CBOR lirary should be able to parse and find reported property.
+    deviceDesitedData->cb_payload
+
+
+
+}
+
 // dt_e2e_send_module_id_test makes sure that when OPTION_MODEL_ID is specified at creation time, then
 // the Service Twin has it specified.
 void dt_e2e_send_module_id_test(IOTHUB_CLIENT_TRANSPORT_PROVIDER protocol, IOTHUB_ACCOUNT_AUTH_METHOD accountAuthMethod, const char* modelId)
@@ -840,7 +973,7 @@ void dt_e2e_send_module_id_test(IOTHUB_CLIENT_TRANSPORT_PROVIDER protocol, IOTHU
 
     dt_e2e_create_client_handle(deviceToUse, protocol);
     // Set the ModelId prior to any network I/O.  The caller passes the modelId because the the modelId
-    // is persisted on the Hub after initial set.  So to truly test that the modelId is sent across on 
+    // is persisted on the Hub after initial set.  So to truly test that the modelId is sent across on
     // each test, we need to have the caller change it on each invocation of this test helper.
     setoption_on_device_or_module(OPTION_MODEL_ID, modelId, "Cannot specify modelId");
 
@@ -852,10 +985,10 @@ void dt_e2e_send_module_id_test(IOTHUB_CLIENT_TRANSPORT_PROVIDER protocol, IOTHU
     const char *connectionString = IoTHubAccount_GetIoTHubConnString(g_iothubAcctInfo);
     IOTHUB_SERVICE_CLIENT_AUTH_HANDLE iotHubServiceClientHandle = IoTHubServiceClientAuth_CreateFromConnectionString(connectionString);
     ASSERT_IS_NOT_NULL(iotHubServiceClientHandle, "IoTHubServiceClientAuth_CreateFromConnectionString failed");
-    
+
     IOTHUB_SERVICE_CLIENT_DEVICE_TWIN_HANDLE serviceClientDeviceTwinHandle = IoTHubDeviceTwin_Create(iotHubServiceClientHandle);
     ASSERT_IS_NOT_NULL(serviceClientDeviceTwinHandle, "IoTHubDeviceTwin_Create failed");
-    
+
     char *twinData = dt_e2e_get_twin_from_service(serviceClientDeviceTwinHandle, deviceToUse);
 
     JSON_Value *rootValue = json_parse_string(twinData);

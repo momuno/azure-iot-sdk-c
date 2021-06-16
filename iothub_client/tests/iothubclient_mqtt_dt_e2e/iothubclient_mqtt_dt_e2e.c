@@ -5,6 +5,7 @@
 #include "iothubclient_common_dt_e2e.h"
 #include "iothubtransportmqtt.h"
 #include "iothubtransportmqtt_websockets.h"
+#include "Iothub_client_options.h"
 
 BEGIN_TEST_SUITE(iothubclient_mqtt_dt_e2e)
 
@@ -21,6 +22,11 @@ TEST_SUITE_CLEANUP(TestClassCleanup)
 //
 // MQTT tests.
 //
+TEST_FUNTCION(IoTHub_MQTT_SendContentType_e2e_sas)
+{
+    dt_e2e_send_content_type_test(MQTT_Protocol, IOTHUB_ACCOUNT_AUTH_CONNSTRING, OPTION_METHOD_TWIN_CONTENT_TYPE_VALUE_CBOR);
+}
+
 TEST_FUNCTION(IoTHub_MQTT_SendModelId_e2e_sas)
 {
     dt_e2e_send_module_id_test(MQTT_Protocol, IOTHUB_ACCOUNT_AUTH_CONNSTRING, TEST_MODEL_ID_1);
@@ -42,6 +48,11 @@ TEST_FUNCTION(IoTHub_MQTT_GetTwinAsync_e2e_sas)
 }
 
 #ifndef __APPLE__
+TEST_FUNTCION(IoTHub_MQTT_SendContentType_e2e_x509)
+{
+    dt_e2e_send_content_type_test(MQTT_Protocol, IOTHUB_ACCOUNT_AUTH_X509, OPTION_METHOD_TWIN_CONTENT_TYPE_VALUE_CBOR);
+}
+
 TEST_FUNCTION(IoTHub_MQTT_SendModelId_e2e_x509)
 {
     dt_e2e_send_module_id_test(MQTT_Protocol, IOTHUB_ACCOUNT_AUTH_X509, TEST_MODEL_ID_2);
@@ -67,6 +78,11 @@ TEST_FUNCTION(IoTHub_MQTT_GetTwinAsync_e2e_x509)
 //
 // MQTT_WS tests.
 //
+TEST_FUNTCION(IoTHub_MQTT_SendContentType_e2e_sas)
+{
+    dt_e2e_send_content_type_test(MQTT_WebSocket_Protocol, IOTHUB_ACCOUNT_AUTH_CONNSTRING, OPTION_METHOD_TWIN_CONTENT_TYPE_VALUE_CBOR);
+}
+
 TEST_FUNCTION(IoTHub_MQTT_WS_SendModelId_e2e_sas)
 {
     dt_e2e_send_module_id_test(MQTT_WebSocket_Protocol, IOTHUB_ACCOUNT_AUTH_CONNSTRING, TEST_MODEL_ID_3);
@@ -87,6 +103,11 @@ TEST_FUNCTION(IoTHub_MQTT_WS_GetTwinAsync_e2e_sas)
     dt_e2e_get_twin_async_test(MQTT_WebSocket_Protocol, IOTHUB_ACCOUNT_AUTH_CONNSTRING);
 }
 #ifndef __APPLE__
+TEST_FUNTCION(IoTHub_MQTT_SendContentType_e2e_x509)
+{
+    dt_e2e_send_content_type_test(MQTT_WebSocket_Protocol, IOTHUB_ACCOUNT_AUTH_X509, OPTION_METHOD_TWIN_CONTENT_TYPE_VALUE_CBOR);
+}
+
 TEST_FUNCTION(IoTHub_MQTT_WS_SendModelId_e2e_x509)
 {
     dt_e2e_send_module_id_test(MQTT_WebSocket_Protocol, IOTHUB_ACCOUNT_AUTH_X509, TEST_MODEL_ID_4);
@@ -111,4 +132,3 @@ TEST_FUNCTION(IoTHub_MQTT_WS_GetTwinAsync_e2e_x509)
 
 
 END_TEST_SUITE(iothubclient_mqtt_dt_e2e)
-

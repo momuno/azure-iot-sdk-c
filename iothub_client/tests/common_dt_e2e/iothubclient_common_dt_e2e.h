@@ -6,6 +6,7 @@
 
 #include "iothub_client_ll.h"
 #include "iothub_account.h"
+#include "iothub_client_options.h"
 
 // The ModelId is used when testing that the device client successfully sends the model
 // to the IoT Hub.  It is OK that there is no DTDL that implements these models since
@@ -23,6 +24,6 @@ extern void dt_e2e_send_reported_test_svc_fault_ctrl_kill_Tcp(IOTHUB_CLIENT_TRAN
 extern void dt_e2e_get_complete_desired_test_svc_fault_ctrl_kill_Tcp(IOTHUB_CLIENT_TRANSPORT_PROVIDER protocol, IOTHUB_ACCOUNT_AUTH_METHOD accountAuthMethod);
 extern void dt_e2e_get_twin_async_test(IOTHUB_CLIENT_TRANSPORT_PROVIDER protocol, IOTHUB_ACCOUNT_AUTH_METHOD accountAuthMethod);
 extern void dt_e2e_send_module_id_test(IOTHUB_CLIENT_TRANSPORT_PROVIDER protocol, IOTHUB_ACCOUNT_AUTH_METHOD accountAuthMethod, const char* modelId);
-
+extern void dt_e2e_send_content_type_test(IOTHUB_CLIENT_TRANSPORT_PROVIDER protocol, IOTHUB_ACCOUNT_AUTH_METHOD accountAuthMethod, OPTION_METHOD_TWIN_CONTENT_TYPE_VALUE contentType);
 
 #endif /* IOTHUBCLIENT_COMMON_DT_E2E_H */
