@@ -2,11 +2,13 @@
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 
 #include <stdlib.h>
-#include "umock_c/umock_c_prod.h"
+
 #include "azure_c_shared_utility/gballoc.h"
+#include "umock_c/umock_c_prod.h"
 
 #include "iothub_client_core.h"
 #include "iothub_device_client.h"
+#include "iothub_twin.h"
 
 IOTHUB_DEVICE_CLIENT_HANDLE IoTHubDeviceClient_CreateFromConnectionString(const char* connectionString, IOTHUB_CLIENT_TRANSPORT_PROVIDER protocol)
 {
@@ -81,6 +83,16 @@ IOTHUB_CLIENT_RESULT IoTHubDeviceClient_SetDeviceTwinCallback(IOTHUB_DEVICE_CLIE
 IOTHUB_CLIENT_RESULT IoTHubDeviceClient_GetTwinAsync(IOTHUB_DEVICE_CLIENT_HANDLE iotHubClientHandle, IOTHUB_CLIENT_DEVICE_TWIN_CALLBACK deviceTwinCallback, void* userContextCallback)
 {
     return IoTHubClientCore_GetTwinAsync((IOTHUB_CLIENT_CORE_HANDLE)iotHubClientHandle, deviceTwinCallback, userContextCallback);
+}
+
+IOTHUB_CLIENT_RESULT IoTHubDeviceClient_GetTwinDesiredAsync(IOTHUB_DEVICE_CLIENT_HANDLE iotHubClientHandle, IOTHUB_TWIN_REQUEST_OPTIONS_HANDLE twinRequestOptions, IOTHUB_CLIENT_DEVICE_TWIN_SECTION_CALLBACK deviceTwinDesiredCallback, void* userContextCallback)
+{
+    return IoTHubClientCore_GetTwinDesiredAsync((IOTHUB_CLIENT_CORE_HANDLE)iotHubClientHandle, twinRequestOptions, deviceTwinDesiredCallback, userContextCallback);
+}
+
+IOTHUB_CLIENT_RESULT IoTHubDeviceClient_GetTwinReportedAsync(IOTHUB_DEVICE_CLIENT_HANDLE iotHubClientHandle, IOTHUB_TWIN_REQUEST_OPTIONS_HANDLE twinRequestOptions, IOTHUB_CLIENT_DEVICE_TWIN_SECTION_CALLBACK deviceTwinReportedCallback, void* userContextCallback)
+{
+    return IoTHubClientCore_GetTwinReportedAsync((IOTHUB_CLIENT_CORE_HANDLE)iotHubClientHandle, twinRequestOptions, deviceTwinReportedCallback, userContextCallback);
 }
 
 IOTHUB_CLIENT_RESULT IoTHubDeviceClient_SendReportedState(IOTHUB_DEVICE_CLIENT_HANDLE iotHubClientHandle, const unsigned char* reportedState, size_t size, IOTHUB_CLIENT_REPORTED_STATE_CALLBACK reportedStateCallback, void* userContextCallback)

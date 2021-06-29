@@ -19,16 +19,17 @@
 #include <stdint.h>
 
 #include "umock_c/umock_c_prod.h"
-#include "iothub_transport_ll.h"
-#include "iothub_client_core_ll.h"
+
 #include "iothub_client_core.h"
+#include "iothub_client_core_ll.h"
 #include "iothub_device_client_ll.h"
+#include "iothub_transport_ll.h"
+#include "iothub_twin.h"
 
 #ifndef IOTHUB_DEVICE_CLIENT_INSTANCE_TYPE
 typedef IOTHUB_CLIENT_CORE_HANDLE IOTHUB_DEVICE_CLIENT_HANDLE;
 #define IOTHUB_DEVICE_CLIENT_INSTANCE_TYPE
-#endif // IOTHUB_CLIENT_INSTANCE
-
+#endif
 
 #ifdef __cplusplus
 extern "C"
@@ -238,7 +239,7 @@ extern "C"
     * @param    value                   The value.
     *
     * @remarks  Documentation for configuration options is available at https://github.com/Azure/azure-iot-sdk-c/blob/master/doc/Iothub_sdk_options.md.
-    * 
+    *
     * @return   IOTHUB_CLIENT_OK upon success or an error code upon failure.
     */
     MOCKABLE_FUNCTION(, IOTHUB_CLIENT_RESULT, IoTHubDeviceClient_SetOption, IOTHUB_DEVICE_CLIENT_HANDLE, iotHubClientHandle, const char*, optionName, const void*, value);
@@ -281,13 +282,17 @@ extern "C"
     MOCKABLE_FUNCTION(, IOTHUB_CLIENT_RESULT, IoTHubDeviceClient_SendReportedState, IOTHUB_DEVICE_CLIENT_HANDLE, iotHubClientHandle, const unsigned char*, reportedState, size_t, size, IOTHUB_CLIENT_REPORTED_STATE_CALLBACK, reportedStateCallback, void*, userContextCallback);
 
     /**
-    * @brief    This API provides a way to retrieve the complete device Twin properties on-demand.
+    * @brief    This API provides a way to retrieve the device twin properties on-demand.
     *
-    * @param    iotHubClientHandle       The handle created by a call to the create function.
-    * @param    deviceTwinCallback       The callback invoked to provide the complete Device Twin properties once its retrieval is completed by the client.
-    *                                    If any failures occur, the callback is invoked passing @c NULL as payLoad and zero as size.
-    * @param    userContextCallback      User specified context that will be provided to the
-    *                                    callback. This can be @c NULL.
+    * @param    iotHubClientHandle      The handle created by a call to the create function.
+    * @param    deviceTwinCallback      The callback specified by the device client to receive the
+     *                                  twin document.
+    *                                   If any failures occur, the callback is invoked passing
+    *                                   @c NULL as payLoad and zero as size.
+    * @param    twinRequestOptions      The GET twin request options struct. Can only be used when
+    *                                   requesting desired or reported specific sections.
+    * @param    userContextCallback     User specified context that will be provided to the
+    *                                   callback. This can be @c NULL.
     *
     *            @b NOTE: The application behavior is undefined if the user calls
     *            the IoTHubDeviceClient_Destroy function from within any callback.
@@ -295,6 +300,8 @@ extern "C"
     * @return    IOTHUB_CLIENT_OK upon success or an error code upon failure.
     */
     MOCKABLE_FUNCTION(, IOTHUB_CLIENT_RESULT, IoTHubDeviceClient_GetTwinAsync, IOTHUB_DEVICE_CLIENT_HANDLE, iotHubClientHandle, IOTHUB_CLIENT_DEVICE_TWIN_CALLBACK, deviceTwinCallback, void*, userContextCallback);
+    MOCKABLE_FUNCTION(, IOTHUB_CLIENT_RESULT, IoTHubDeviceClient_GetTwinDesiredAsync, IOTHUB_DEVICE_CLIENT_HANDLE, iotHubClientHandle, IOTHUB_TWIN_REQUEST_OPTIONS_HANDLE, twinRequestOptions, IOTHUB_CLIENT_DEVICE_TWIN_SECTION_CALLBACK, deviceTwinDesiredCallback, void*, userContextCallback);
+    MOCKABLE_FUNCTION(, IOTHUB_CLIENT_RESULT, IoTHubDeviceClient_GetTwinReportedAsync, IOTHUB_DEVICE_CLIENT_HANDLE, iotHubClientHandle, IOTHUB_TWIN_REQUEST_OPTIONS_HANDLE, twinRequestOptions, IOTHUB_CLIENT_DEVICE_TWIN_SECTION_CALLBACK, deviceTwinReportedCallback,  void*, userContextCallback);
 
     /**
     * @brief    This API sets the callback for async cloud to device method calls.

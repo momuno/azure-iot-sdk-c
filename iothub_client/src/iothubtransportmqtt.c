@@ -97,6 +97,18 @@ static IOTHUB_CLIENT_RESULT IoTHubTransportMqtt_GetTwinAsync(IOTHUB_DEVICE_HANDL
     return IoTHubTransport_MQTT_Common_GetTwinAsync(handle, completionCallback, callbackContext);
 }
 
+static IOTHUB_CLIENT_RESULT IoTHubTransportMqtt_GetTwinDesiredAsync(IOTHUB_DEVICE_HANDLE handle, IOTHUB_CLIENT_DEVICE_TWIN_SECTION_CALLBACK completionCallback, IOTHUB_TWIN_REQUEST_OPTIONS_HANDLE twinRequestOptions, void* callbackContext)
+{
+    // Codes_SRS_IOTHUB_MQTT_TRANSPORT_09_001: [ IoTHubTransportMqtt_GetTwinDesiredAsync shall call into the IoTHubTransport_MQTT_Common_GetTwinDesiredAsync function. ]
+    return IoTHubTransport_MQTT_Common_GetTwinDesiredAsync(handle, completionCallback, twinRequestOptions, callbackContext);
+}
+
+static IOTHUB_CLIENT_RESULT IoTHubTransportMqtt_GetTwinReportedAsync(IOTHUB_DEVICE_HANDLE handle, IOTHUB_CLIENT_DEVICE_TWIN_SECTION_CALLBACK completionCallback, IOTHUB_TWIN_REQUEST_OPTIONS_HANDLE twinRequestOptions, void* callbackContext)
+{
+    // Codes_SRS_IOTHUB_MQTT_TRANSPORT_09_001: [ IoTHubTransportMqtt_GetTwinReportedAsync shall call into the IoTHubTransport_MQTT_Common_GetTwinReportedAsync function. ]
+    return IoTHubTransport_MQTT_Common_GetTwinReportedAsync(handle, completionCallback, twinRequestOptions, callbackContext);
+}
+
 /* Codes_SRS_IOTHUB_MQTT_TRANSPORT_07_023: [ IoTHubTransportMqtt_DeviceMethod_Response shall call into the IoTHubMqttAbstract_DeviceMethod_Response function. ] */
 static int IoTHubTransportMqtt_DeviceMethod_Response(IOTHUB_DEVICE_HANDLE handle, METHOD_HANDLE methodId, const unsigned char* response, size_t response_size, int status_response)
 {

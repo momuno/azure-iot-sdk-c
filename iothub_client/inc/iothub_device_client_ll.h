@@ -29,16 +29,19 @@
 #include "azure_macro_utils/macro_utils.h"
 #include "umock_c/umock_c_prod.h"
 
-#include "iothub_transport_ll.h"
 #include "iothub_client_core_ll.h"
+#include "iothub_transport_ll.h"
+#include "iothub_twin.h"
 
 #ifdef __cplusplus
 extern "C"
 {
 #endif
 
+#ifndef IOTHUB_DEVICE_CLIENT_LL_INSTANCE_TYPE
 typedef struct IOTHUB_CLIENT_CORE_LL_HANDLE_DATA_TAG* IOTHUB_DEVICE_CLIENT_LL_HANDLE;
-
+#define IOTHUB_DEVICE_CLIENT_LL_INSTANCE_TYPE
+#endif
 
     /**
     * @brief    Creates a IoT Hub client for communication with an existing
@@ -300,10 +303,13 @@ typedef struct IOTHUB_CLIENT_CORE_LL_HANDLE_DATA_TAG* IOTHUB_DEVICE_CLIENT_LL_HA
      MOCKABLE_FUNCTION(, IOTHUB_CLIENT_RESULT, IoTHubDeviceClient_LL_SendReportedState, IOTHUB_DEVICE_CLIENT_LL_HANDLE, iotHubClientHandle, const unsigned char*, reportedState, size_t, size, IOTHUB_CLIENT_REPORTED_STATE_CALLBACK, reportedStateCallback, void*, userContextCallback);
 
      /**
-     * @brief	This API enabled the device to request the full device twin (with all the desired and reported properties) on demand.
+     * @brief	This API provides a way to retrieve the device twin properties on-demand.
      *
-     * @param	iotHubClientHandle		The handle created by a call to the create function.
-     * @param	deviceTwinCallback	    The callback specified by the device client to receive the Twin document.
+     * @param	iotHubClientHandle	    The handle created by a call to the create function.
+     * @param	deviceTwinCallback	    The callback specified by the device client to receive the
+     *                                  twin document.
+     * @param    twinRequestOptions     The GET twin request options struct. Can only be used when
+     *                                  requesting desired or reported specific sections.
      * @param	userContextCallback		User specified context that will be provided to the
      * 									callback. This can be @c NULL.
      *
@@ -313,6 +319,8 @@ typedef struct IOTHUB_CLIENT_CORE_LL_HANDLE_DATA_TAG* IOTHUB_DEVICE_CLIENT_LL_HA
      * @return	IOTHUB_CLIENT_OK upon success or an error code upon failure.
      */
      MOCKABLE_FUNCTION(, IOTHUB_CLIENT_RESULT, IoTHubDeviceClient_LL_GetTwinAsync, IOTHUB_DEVICE_CLIENT_LL_HANDLE, iotHubClientHandle, IOTHUB_CLIENT_DEVICE_TWIN_CALLBACK, deviceTwinCallback, void*, userContextCallback);
+     MOCKABLE_FUNCTION(, IOTHUB_CLIENT_RESULT, IoTHubDeviceClient_LL_GetTwinDesiredAsync, IOTHUB_DEVICE_CLIENT_LL_HANDLE, iotHubClientHandle, IOTHUB_TWIN_REQUEST_OPTIONS_HANDLE, twinRequestOptions, IOTHUB_CLIENT_DEVICE_TWIN_SECTION_CALLBACK, deviceTwinDesiredCallback, void*, userContextCallback);
+     MOCKABLE_FUNCTION(, IOTHUB_CLIENT_RESULT, IoTHubDeviceClient_LL_GetTwinReportedAsync, IOTHUB_DEVICE_CLIENT_LL_HANDLE, iotHubClientHandle, IOTHUB_TWIN_REQUEST_OPTIONS_HANDLE, twinRequestOptions, IOTHUB_CLIENT_DEVICE_TWIN_SECTION_CALLBACK, deviceTwinReportedCallback,  void*, userContextCallback);
 
      /**
      * @brief    This API sets the callback for async cloud to device method calls.
@@ -348,7 +356,7 @@ typedef struct IOTHUB_CLIENT_CORE_LL_HANDLE_DATA_TAG* IOTHUB_DEVICE_CLIENT_LL_HA
     * @param    destinationFileName     name of the file.
     * @param    source                  pointer to the source for file content (can be NULL)
     * @param    size                    the size of the source in memory (if @p source is NULL then size needs to be 0).
-    * 
+    *
     * @warning  Other _LL_ functions such as IoTHubDeviceClient_LL_SendEventAsync queue work to be performed later and do not block.  IoTHubDeviceClient_LL_UploadToBlob
     *           will block however until the upload is completed or fails, which may take a while.
     *

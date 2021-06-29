@@ -23,6 +23,7 @@
 #include "iothub_client_core_ll.h"
 #include "iothub_client_core.h"
 #include "iothub_module_client_ll.h"
+#include "iothub_twin.h"
 
 #ifndef IOTHUB_MODULE_CLIENT_INSTANCE_TYPE
 typedef IOTHUB_CLIENT_CORE_HANDLE IOTHUB_MODULE_CLIENT_HANDLE;
@@ -189,7 +190,7 @@ extern "C"
     * @param    optionName                  Name of the option.
     * @param    value                       The value.
     *
-    * 
+    *
     * @remarks  Documentation for configuration options is available at https://github.com/Azure/azure-iot-sdk-c/blob/master/doc/Iothub_sdk_options.md.
     *
     * @return   IOTHUB_CLIENT_OK upon success or an error code upon failure.
@@ -248,6 +249,8 @@ extern "C"
     * @return    IOTHUB_CLIENT_OK upon success or an error code upon failure.
     */
     MOCKABLE_FUNCTION(, IOTHUB_CLIENT_RESULT, IoTHubModuleClient_GetTwinAsync, IOTHUB_MODULE_CLIENT_HANDLE, iotHubModuleClientHandle, IOTHUB_CLIENT_DEVICE_TWIN_CALLBACK, moduleTwinCallback, void*, userContextCallback);
+    MOCKABLE_FUNCTION(, IOTHUB_CLIENT_RESULT, IoTHubDeviceClient_GetTwinDesiredAsync, IOTHUB_DEVICE_CLIENT_HANDLE, iotHubModuleClientHandle, IOTHUB_TWIN_REQUEST_OPTIONS_HANDLE, twinRequestOptions, IOTHUB_CLIENT_DEVICE_TWIN_SECTION_CALLBACK, moduleTwinDesiredCallback, void*, userContextCallback);
+    MOCKABLE_FUNCTION(, IOTHUB_CLIENT_RESULT, IoTHubDeviceClient_GetTwinReportedAsync, IOTHUB_DEVICE_CLIENT_HANDLE, iotHubModuleClientHandle, IOTHUB_TWIN_REQUEST_OPTIONS_HANDLE, twinRequestOptions, IOTHUB_CLIENT_DEVICE_TWIN_SECTION_CALLBACK, moduleTwinReportedCallback, void*, userContextCallback);
 
     /**
     * @brief    This API sets callback for async cloud to module method call.

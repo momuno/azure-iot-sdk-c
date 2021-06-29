@@ -8,6 +8,7 @@
 
 #include "iothub_client_core.h"
 #include "iothub_module_client.h"
+#include "iothub_twin.h"
 
 IOTHUB_MODULE_CLIENT_HANDLE IoTHubModuleClient_CreateFromConnectionString(const char* connectionString, IOTHUB_CLIENT_TRANSPORT_PROVIDER protocol)
 {
@@ -73,6 +74,16 @@ IOTHUB_CLIENT_RESULT IoTHubModuleClient_GetTwinAsync(IOTHUB_MODULE_CLIENT_HANDLE
     return IoTHubClientCore_GetTwinAsync((IOTHUB_CLIENT_CORE_HANDLE)iotHubModuleClientHandle, moduleTwinCallback, userContextCallback);
 }
 
+IOTHUB_CLIENT_RESULT IoTHubModuleClient_GetTwinDesiredAsync(IOTHUB_MODULE_CLIENT_HANDLE iotHubModuleClientHandle, IOTHUB_TWIN_REQUEST_OPTIONS_HANDLE twinRequestOptions, IOTHUB_CLIENT_DEVICE_TWIN_SECTION_CALLBACK moduleTwinDesiredCallback, void* userContextCallback)
+{
+    return IoTHubClientCore_GetTwinDesiredAsync((IOTHUB_CLIENT_CORE_HANDLE)iotHubModuleClientHandle, twinRequestOptions, moduleTwinDesiredCallback, userContextCallback);
+}
+
+IOTHUB_CLIENT_RESULT IoTHubModuleClient_GetTwinReportedAsync(IOTHUB_MODULE_CLIENT_HANDLE iotHubModuleClientHandle, IOTHUB_TWIN_REQUEST_OPTIONS_HANDLE twinRequestOptions, IOTHUB_CLIENT_DEVICE_TWIN_SECTION_CALLBACK moduleTwinReportedCallback, void* userContextCallback)
+{
+    return IoTHubClientCore_GetTwinReportedAsync((IOTHUB_CLIENT_CORE_HANDLE)iotHubModuleClientHandle, twinRequestOptions, moduleTwinReportedCallback, userContextCallback);
+}
+
 IOTHUB_CLIENT_RESULT IoTHubModuleClient_SetModuleMethodCallback(IOTHUB_MODULE_CLIENT_HANDLE iotHubClientHandle, IOTHUB_CLIENT_DEVICE_METHOD_CALLBACK_ASYNC methodCallback, void* userContextCallback)
 {
     return IoTHubClientCore_SetDeviceMethodCallback((IOTHUB_CLIENT_CORE_HANDLE)iotHubClientHandle, (IOTHUB_CLIENT_DEVICE_METHOD_CALLBACK_ASYNC)methodCallback, userContextCallback);
@@ -128,4 +139,3 @@ IOTHUB_CLIENT_RESULT IoTHubModuleClient_ModuleMethodInvokeAsync(IOTHUB_MODULE_CL
 }
 
 #endif /*USE_EDGE_MODULES*/
-
