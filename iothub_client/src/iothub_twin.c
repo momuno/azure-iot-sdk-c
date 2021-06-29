@@ -2,6 +2,7 @@
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 
 #include <stdbool.h>
+#include <stdlib.h>
 
 #include "iothub_twin.h"
 

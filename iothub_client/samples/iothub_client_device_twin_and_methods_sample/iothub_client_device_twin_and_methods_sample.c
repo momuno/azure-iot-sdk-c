@@ -121,7 +121,7 @@ static void send_reported_property();
 static void connection_status_callback(IOTHUB_CLIENT_CONNECTION_STATUS result, IOTHUB_CLIENT_CONNECTION_STATUS_REASON reason, void* user_context);
 static void get_twin_async_callback(DEVICE_TWIN_UPDATE_STATE update_state, const unsigned char* payload, size_t size, void* user_context);
 #if defined SAMPLE_MQTT || defined SAMPLE_MQTT_OVER_WEBSOCKETS
-static void get_twin_desired_properties_async_callback(IOTHUB_TWIN_RESPONSE_HANDLE twin_response, void* user_context);
+static void get_twin_desired_properties_async_callback(DEVICE_TWIN_UPDATE_STATE update_state, IOTHUB_TWIN_RESPONSE_HANDLE twin_response, const unsigned char* payload, size_t size, void* user_context);
 #endif
 static void patch_twin_desired_properties_callback(DEVICE_TWIN_UPDATE_STATE update_state, const unsigned char* payload, size_t size, void* user_context);
 static void patch_twin_reported_properties_callback(int status_code, void* user_context);

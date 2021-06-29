@@ -26,22 +26,17 @@ extern "C"
 #ifndef IOTHUB_TWIN_REQUEST_OPTIONS_TYPE
 typedef struct IOTHUB_TWIN_REQUEST_OPTIONS_TAG* IOTHUB_TWIN_REQUEST_OPTIONS_HANDLE;
 #define IOTHUB_TWIN_REQUEST_OPTIONS_TYPE
+#endif
 #ifndef IOTHUB_TWIN_RESPONSE_TYPE
 typedef struct IOTHUB_TWIN_RESPONSE_TAG* IOTHUB_TWIN_RESPONSE_HANDLE;
 #define IOTHUB_TWIN_RESPONSE_TYPE
 #endif
 
 /**
- * @brief Construct a new mu define enum without invalid object. Defines the section of the twin
- *        document requested.
- */
-MU_DEFINE_ENUM_WITHOUT_INVALID(IOTHUB_TWIN_MESSAGE_TYPE, IOTHUB_TWIN_MESSAGE_TYPE_VALUES);
-
-/**
  * @brief  GET twin request options
  */
-typedef bool(*IOTHUB_TWIN_REQUEST_OPTIONS_GET_INT64)(IOTHUB_TWIN_REQUEST_OPTIONS* twin_request_options, int64_t* value);
-typedef void(*IOTHUB_TWIN_REQUEST_OPTIONS_SET_INT64)(IOTHUB_TWIN_REQUEST_OPTIONS* twin_request_options, int64_t* value);
+typedef bool(*IOTHUB_TWIN_REQUEST_OPTIONS_GET_INT64)(IOTHUB_TWIN_REQUEST_OPTIONS_HANDLE twin_request_options, int64_t* value);
+typedef void(*IOTHUB_TWIN_REQUEST_OPTIONS_SET_INT64)(IOTHUB_TWIN_REQUEST_OPTIONS_HANDLE twin_request_options, int64_t* value);
 
 typedef struct IOTHUB_TWIN_REQUEST_OPTIONS_TAG
 {
@@ -98,9 +93,9 @@ MOCKABLE_FUNCTION(, void, IoTHubTwin_DestroyRequestOptions, IOTHUB_TWIN_REQUEST_
 /**
  * @brief  Get twin response
  */
-typedef bool(*IOTHUB_TWIN_RESPONSE_OPTIONS_GET_UCHAR)(IOTHUB_TWIN_RESPONSE* twin_response, const unsigned char** value);
-typedef bool(*IOTHUB_TWIN_RESPONSE_OPTIONS_GET_SIZE)(IOTHUB_TWIN_RESPONSE* twin_response, size_t* value);
-typedef bool(*IOTHUB_TWIN_RESPONSE_OPTIONS_GET_INT64)(IOTHUB_TWIN_RESPONSE* twin_response, int64_t* value);
+typedef bool(*IOTHUB_TWIN_RESPONSE_OPTIONS_GET_UCHAR)(IOTHUB_TWIN_RESPONSE_HANDLE twin_response, const unsigned char** value);
+typedef bool(*IOTHUB_TWIN_RESPONSE_OPTIONS_GET_SIZE)(IOTHUB_TWIN_RESPONSE_HANDLE twin_response, size_t* value);
+typedef bool(*IOTHUB_TWIN_RESPONSE_OPTIONS_GET_INT64)(IOTHUB_TWIN_RESPONSE_HANDLE twin_response, int64_t* value);
 
 typedef struct IOTHUB_TWIN_RESPONSE_TAG
 {

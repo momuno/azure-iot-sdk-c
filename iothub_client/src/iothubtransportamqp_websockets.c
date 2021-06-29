@@ -152,6 +152,28 @@ static IOTHUB_CLIENT_RESULT IoTHubTransportAMQP_WS_GetTwinAsync(IOTHUB_DEVICE_HA
     return IoTHubTransport_AMQP_Common_GetTwinAsync(handle, completionCallback, callbackContext);
 }
 
+static IOTHUB_CLIENT_RESULT IoTHubTransportAMQP_WS_GetTwinDesiredAsync(IOTHUB_DEVICE_HANDLE handle, IOTHUB_TWIN_REQUEST_OPTIONS_HANDLE twinRequestOptions, IOTHUB_CLIENT_DEVICE_TWIN_SECTION_CALLBACK completionCallback, void* callbackContext)
+{
+    (void)handle;
+    (void)twinRequestOptions;
+    (void)completionCallback;
+    (void)callbackContext;
+    LogError("Currently Not Supported.");
+    // Codes_SRS_TRANSPORTMULTITHTTP_09_005: [ `IoTHubTransportAMQP_WS_GetTwinDesiredAsync` shall return IOTHUB_CLIENT_ERROR]
+    return IOTHUB_CLIENT_ERROR;
+}
+
+static IOTHUB_CLIENT_RESULT IoTHubTransportAMQP_WS_GetTwinReportedAsync(IOTHUB_DEVICE_HANDLE handle, IOTHUB_TWIN_REQUEST_OPTIONS_HANDLE twinRequestOptions, IOTHUB_CLIENT_DEVICE_TWIN_SECTION_CALLBACK completionCallback, void* callbackContext)
+{
+    (void)handle;
+    (void)twinRequestOptions;
+    (void)completionCallback;
+    (void)callbackContext;
+    LogError("Currently Not Supported.");
+    // Codes_SRS_TRANSPORTMULTITHTTP_09_005: [ `IoTHubTransportAMQP_WS_GetTwinReportedAsync` shall return IOTHUB_CLIENT_ERROR]
+    return IOTHUB_CLIENT_ERROR;
+}
+
 static int IoTHubTransportAMQP_WS_Subscribe_DeviceMethod(IOTHUB_DEVICE_HANDLE handle)
 {
     // Codes_SRS_IoTHubTransportAMQP_WS_09_010: [IoTHubTransportAMQP_WS_Subscribe_DeviceMethod shall invoke IoTHubTransport_AMQP_Common_Subscribe_DeviceMethod() and return its result.]
@@ -263,6 +285,8 @@ static TRANSPORT_PROVIDER thisTransportProvider_WebSocketsOverTls =
     IotHubTransportAMQP_WS_Unsubscribe_InputQueue,                     /*pfIoTHubTransport_Unsubscribe_InputQueue IoTHubTransport_Unsubscribe_InputQueue; */
     IoTHubTransportAMQP_WS_SetCallbackContext,                         /*pfIoTHubTransport_SetCallbackContext IoTHubTransport_SetCallbackContext; */
     IoTHubTransportAMQP_WS_GetTwinAsync,                               /*pfIoTHubTransport_GetTwinAsync IoTHubTransport_GetTwinAsync;*/
+    IoTHubTransportAMQP_WS_GetTwinDesiredAsync,                        /*pfIoTHubTransport_GetTwinAsync IoTHubTransport_GetTwinDesiredAsync;*/
+    IoTHubTransportAMQP_WS_GetTwinReportedAsync,                       /*pfIoTHubTransport_GetTwinAsync IoTHubTransport_GetTwinReportedAsync;*/
     IoTHubTransportAMQP_WS_GetSupportedPlatformInfo                         /*pfIoTHubTransport_GetSupportedPlatformInfo IoTHubTransport_GetSupportedPlatformInfo;*/
 };
 

@@ -1169,7 +1169,7 @@ static void on_get_device_twin_completed(DEVICE_TWIN_UPDATE_STATE updateState, c
         GET_TWIN_CONTEXT* getTwinCtx = (GET_TWIN_CONTEXT*)userContextCallback;
         if (payload)
         {
-            getTwinCtx->userCallback.getTwin(updateState, payLoad, size, getTwinCtx->userContext);
+            getTwinCtx->userCallback.getTwin(updateState, payload, size, getTwinCtx->userContext);
         }
         free(getTwinCtx);
     }
@@ -2508,7 +2508,7 @@ IOTHUB_CLIENT_RESULT IoTHubClientCore_LL_SendReportedState(IOTHUB_CLIENT_CORE_LL
 static IOTHUB_CLIENT_RESULT getTwinAsync(IOTHUB_CLIENT_CORE_LL_HANDLE iotHubClientHandle, IOTHUB_TWIN_REQUEST_OPTIONS_HANDLE twinRequestOptions,
                                          IOTHUB_CLIENT_DEVICE_TWIN_CALLBACK twinCallback, IOTHUB_CLIENT_DEVICE_TWIN_SECTION_CALLBACK twinSectionCallback,
                                          void* userContext, DEVICE_TWIN_MESSAGE_TYPE twinMessageType)
-{{
+{
    IOTHUB_CLIENT_RESULT result;
 
     // Codes_SRS_IOTHUBCLIENT_09_009: [ If `iotHubClientHandle` is  `NULL`, `getTwinAsync` shall return `IOTHUB_CLIENT_INVALID_ARG`. ]
@@ -2571,12 +2571,13 @@ static IOTHUB_CLIENT_RESULT getTwinAsync(IOTHUB_CLIENT_CORE_LL_HANDLE iotHubClie
                     result = IOTHUB_CLIENT_OK;
                     iotHubClientHandle->complete_twin_update_encountered = true;
                 }
+            }
         }
     }
     return result;
 }
 
-IOTHUB_CLIENT_RESULT IoTHubClientCore_LL_GetTwinAsync(IOTHUB_CLIENT_CORE_LL_HANDLE iotHubClientHandle, IOTHUB_CLIENT_DEVICE_TWIN_SECTION_CALLBACK deviceTwinCallback, void* userContextCallback)
+IOTHUB_CLIENT_RESULT IoTHubClientCore_LL_GetTwinAsync(IOTHUB_CLIENT_CORE_LL_HANDLE iotHubClientHandle, IOTHUB_CLIENT_DEVICE_TWIN_CALLBACK deviceTwinCallback, void* userContextCallback)
 {
     IOTHUB_CLIENT_RESULT result;
 
@@ -3094,7 +3095,6 @@ IOTHUB_CLIENT_RESULT IoTHubClientCore_LL_SetInputMessageCallbackImpl(IOTHUB_CLIE
         }
     }
     return result;
-
 }
 
 IOTHUB_CLIENT_RESULT IoTHubClientCore_LL_SetInputMessageCallbackEx(IOTHUB_CLIENT_CORE_LL_HANDLE iotHubClientHandle, const char* inputName, IOTHUB_CLIENT_MESSAGE_CALLBACK_ASYNC_EX eventHandlerCallbackEx, void *userContextCallbackEx, size_t userContextCallbackExLength)
