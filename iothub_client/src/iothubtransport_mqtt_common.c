@@ -3290,14 +3290,14 @@ void IoTHubTransport_MQTT_Common_Unsubscribe_DeviceTwin(TRANSPORT_LL_HANDLE hand
     }
 }
 
-void IoTHubTransport_Common_SetDeviceTwinCallback(TRANSPORT_LL_HANDLE handle, IOTHUB_CLIENT_DEVICE_TWIN_CALLBACK twinCallback, IOTHUB_CLIENT_DEVICE_TWIN_SECTION_CALLBACK twinSectionCallback)
+void IoTHubTransport_MQTT_Common_SetDeviceTwinCallback(TRANSPORT_LL_HANDLE handle, IOTHUB_CLIENT_DEVICE_TWIN_CALLBACK twinCallback, IOTHUB_CLIENT_DEVICE_TWIN_SECTION_CALLBACK twinSectionCallback)
 {
     PMQTTTRANSPORT_HANDLE_DATA transport_data = (PMQTTTRANSPORT_HANDLE_DATA)handle;
 
     if (transport_data != NULL)
     {
-        transportData->transport_callbacks.twin_retrieve_prop_complete_cb = twinCallback;
-        transportData->transport_callbacks.twin_retrieve_prop_desired_cb = twinSectionCallback;
+        transport_data->transport_callbacks.twin_retrieve_prop_complete_cb = twinCallback;
+        transport_data->transport_callbacks.twin_retrieve_prop_desired_cb = twinSectionCallback;
     }
     else
     {

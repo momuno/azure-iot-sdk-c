@@ -1214,9 +1214,7 @@ static void IoTHubTransportHttp_SetDeviceTwinCallback(IOTHUB_DEVICE_HANDLE handl
     (void)handle;
     (void)twinCallback;
     (void)twinSectionCallback;
-    int result = MU_FAILURE;
     LogError("IoTHubTransportMqtt_SetDeviceTwinCallback Not supported");
-    return result;
 }
 
 static IOTHUB_CLIENT_RESULT IoTHubTransportHttp_GetTwinAsync(IOTHUB_DEVICE_HANDLE handle, IOTHUB_CLIENT_DEVICE_TWIN_CALLBACK completionCallback, void* callbackContext)

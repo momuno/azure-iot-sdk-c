@@ -466,7 +466,7 @@ static void get_twin_desired_properties_async_callback(DEVICE_TWIN_UPDATE_STATE 
 
     // Retrieve response status
     int64_t response_status;
-    if (twin_response->get_version(&twin_response, response_status))
+    if (twin_response->get_version(twin_response, &response_status))
     {
         printf("Status: %ld\n", response_status);
     }
@@ -478,7 +478,7 @@ static void get_twin_desired_properties_async_callback(DEVICE_TWIN_UPDATE_STATE 
 
     // Retrieve response version
     int64_t response_version;
-    if (twin_response->get_version(&twin_response, &response_version))
+    if (twin_response->get_version(twin_response, &response_version))
     {
         (void)printf("Client updating desired `$version` locally from %ld to %ld\n", twin_property_desired_version_value, response_version);
         twin_property_desired_version_value = response_version;
