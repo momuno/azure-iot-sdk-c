@@ -240,7 +240,8 @@ extern "C"
     *
     * @return    IOTHUB_CLIENT_OK upon success or an error code upon failure.
     */
-     MOCKABLE_FUNCTION(, IOTHUB_CLIENT_RESULT, IoTHubModuleClient_LL_SetModuleTwinCallback, IOTHUB_MODULE_CLIENT_LL_HANDLE, iotHubModuleClientHandle, IOTHUB_CLIENT_DEVICE_TWIN_CALLBACK, moduleTwinCallback, void*, userContextCallback);
+    MOCKABLE_FUNCTION(, IOTHUB_CLIENT_RESULT, IoTHubModuleClient_LL_SetModuleTwinCallback, IOTHUB_MODULE_CLIENT_LL_HANDLE, iotHubModuleClientHandle, IOTHUB_CLIENT_DEVICE_TWIN_CALLBACK, moduleTwinCallback, void*, userContextCallback);
+    MOCKABLE_FUNCTION(, IOTHUB_CLIENT_RESULT, IoTHubModuleClient_LL_SetModuleTwinDesiredCallback, IOTHUB_MODULE_CLIENT_HANDLE, iotHubModuleClientHandle, IOTHUB_CLIENT_DEVICE_TWIN_SECTION_CALLBACK, moduleTwinDesiredCallback, void*, userContextCallback);
 
     /**
     * @brief    This API sneds a report of the module's properties and their current values.
@@ -257,7 +258,7 @@ extern "C"
     *
     * @return    IOTHUB_CLIENT_OK upon success or an error code upon failure.
     */
-     MOCKABLE_FUNCTION(, IOTHUB_CLIENT_RESULT, IoTHubModuleClient_LL_SendReportedState, IOTHUB_MODULE_CLIENT_LL_HANDLE, iotHubModuleClientHandle, const unsigned char*, reportedState, size_t, size, IOTHUB_CLIENT_REPORTED_STATE_CALLBACK, reportedStateCallback, void*, userContextCallback);
+    MOCKABLE_FUNCTION(, IOTHUB_CLIENT_RESULT, IoTHubModuleClient_LL_SendReportedState, IOTHUB_MODULE_CLIENT_LL_HANDLE, iotHubModuleClientHandle, const unsigned char*, reportedState, size_t, size, IOTHUB_CLIENT_REPORTED_STATE_CALLBACK, reportedStateCallback, void*, userContextCallback);
 
      /**
      * @brief	This API enabled the device to request the full module twin (with all the desired and reported properties) on demand.

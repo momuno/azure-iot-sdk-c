@@ -4,6 +4,9 @@
 #include <stdbool.h>
 #include <stdlib.h>
 
+
+#include <stdio.h>
+
 #include "iothub_twin.h"
 
 static bool twin_request_options_get_current_version(
@@ -112,7 +115,6 @@ IOTHUB_TWIN_RESPONSE_HANDLE IoTHubTwin_CreateResponse(void)
 IOTHUB_TWIN_RESPONSE_HANDLE IoTHubTwin_CreateCopyResponse(IOTHUB_TWIN_RESPONSE_HANDLE twin_response)
 {
     IOTHUB_TWIN_RESPONSE* copy_twin_response;
-
     copy_twin_response = IoTHubTwin_CreateResponse();
 
     if (twin_response != NULL)

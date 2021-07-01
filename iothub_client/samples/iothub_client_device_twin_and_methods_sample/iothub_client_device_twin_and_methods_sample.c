@@ -123,10 +123,10 @@ static void get_twin_async_callback(DEVICE_TWIN_UPDATE_STATE update_state, const
 #if defined SAMPLE_MQTT || defined SAMPLE_MQTT_OVER_WEBSOCKETS
 static void get_twin_desired_properties_async_callback(DEVICE_TWIN_UPDATE_STATE update_state, IOTHUB_TWIN_RESPONSE_HANDLE twin_response, const unsigned char* payload, size_t size, void* user_context);
 #endif
-static void patch_twin_desired_properties_callback(DEVICE_TWIN_UPDATE_STATE update_state, const unsigned char* payload, size_t size, void* user_context);
+static void patch_twin_desired_properties_callback(DEVICE_TWIN_UPDATE_STATE update_state, IOTHUB_TWIN_RESPONSE_HANDLE twin_response, const unsigned char* payload, size_t size, void* user_context);
 static void patch_twin_reported_properties_callback(int status_code, void* user_context);
 static int receive_method_callback(char const* method_name, unsigned char const* payload, size_t size, unsigned char** response, size_t* response_size, void* user_context);
-static bool parse_twin_document(DEVICE_TWIN_UPDATE_STATE update_state, unsigned char const* payload, CAR* out_car, int64_t* out_parsed_desired_version);
+static bool parse_twin_document(unsigned char const* payload, CAR* out_car, int64_t* out_parsed_desired_version);
 static bool parse_twin_document_desired(unsigned char const* payload, CAR* out_car);
 static char* malloc_and_build_json_reported_property(void);
 
@@ -281,8 +281,7 @@ static void connect_device_client_send_and_receive_messages(void)
     }
 
     // Set callback for twin desired property PATCH messages from IoT Hub.
-    // Sends GET request for twin document as part of setting the callback.
-    rc = IoTHubDeviceClient_SetDeviceTwinCallback(iothub_client, patch_twin_desired_properties_callback, NULL);
+    rc = IoTHubDeviceClient_SetDeviceTwinDesiredCallback(iothub_client, patch_twin_desired_properties_callback, NULL);
     if (rc != IOTHUB_CLIENT_OK)
     {
         (void)printf("Failed to set the twin document callback: return code %d.\n", rc);
@@ -330,6 +329,7 @@ static void connect_device_client_send_and_receive_messages(void)
                 (void)printf("Failed to send a GET request for the twin document `desired` asynchronously: return code %d.\n", rc);
                 exit(rc);
             }
+
             send_get_request_start_time = time(NULL);
         }
 #endif
@@ -422,6 +422,12 @@ static void connection_status_callback(IOTHUB_CLIENT_CONNECTION_STATUS result, I
 
 static void get_twin_async_callback(DEVICE_TWIN_UPDATE_STATE update_state, const unsigned char* payload, size_t size, void* user_context)
 {
+    if (update_state != DEVICE_TWIN_UPDATE_COMPLETE) // Twin document is ill-formed.
+    {
+        (void)printf("Payload does not contain a full twin document.");
+        exit(EXIT_FAILURE);
+    }
+
     (void)user_context;
 
     message_received = true;
@@ -432,11 +438,11 @@ static void get_twin_async_callback(DEVICE_TWIN_UPDATE_STATE update_state, const
     CAR iot_hub_car;
     memset(&iot_hub_car, 0, sizeof(CAR));
 
-    if (parse_twin_document(update_state, payload, &iot_hub_car, &parsed_desired_version))
+    if (parse_twin_document(payload, &iot_hub_car, &parsed_desired_version))
     {
         update_properties(&iot_hub_car);
     }
-    (void)printf("Client updating desired `$version` locally from %ld to %ld", twin_property_desired_version_value, parsed_desired_version);
+    (void)printf("Client updating desired `$version` locally from %ld to %ld\n", twin_property_desired_version_value, parsed_desired_version);
     twin_property_desired_version_value = parsed_desired_version;
 
     send_reported_property();
@@ -447,68 +453,83 @@ static void get_twin_async_callback(DEVICE_TWIN_UPDATE_STATE update_state, const
 #if defined SAMPLE_MQTT || defined SAMPLE_MQTT_OVER_WEBSOCKETS
 static void get_twin_desired_properties_async_callback(DEVICE_TWIN_UPDATE_STATE update_state, IOTHUB_TWIN_RESPONSE_HANDLE twin_response, const unsigned char* payload, size_t size, void* user_context)
 {
+    if (update_state != DEVICE_TWIN_UPDATE_PARTIAL) // Twin document is ill-formed.
+    {
+        (void)printf("Failed to parse twin desired document.");
+        exit(EXIT_FAILURE);
+    }
+
     (void)user_context;
 
     message_received = true;
     (void)printf("\nget_twin_desired_properties_async_callback payload: %.*s\n", (int32_t)size, payload);
 
-//If status 200
-    CAR iot_hub_car;
-    memset(&iot_hub_car, 0, sizeof(CAR));
-    if (parse_twin_document_desired(payload, &iot_hub_car))
+    // Retrieve response status
+    int64_t response_status;
+    if (twin_response->get_version(&twin_response, response_status))
     {
-        update_properties(&iot_hub_car);
+        printf("Status: %ld\n", response_status);
+    }
+    else
+    {
+        (void)printf("Failed to retrieve status from response topic.\n");
+        exit(EXIT_FAILURE);
     }
 
-                /*int64_t response_version;
-            IOT_SAMPLE_EXIT_IF_AZ_FAILED(
-                az_span_atoi64(twin_response.version, &response_version),
-                "Failed converting az_span to int64_t.");
-            IOT_SAMPLE_LOG_SUCCESS(
-                "Client updating desired `$version` locally from %ld to %ld",
-                twin_property_desired_version_value,
-                response_version);
-            twin_property_desired_version_value = response_version;*/
+    // Retrieve response version
+    int64_t response_version;
+    if (twin_response->get_version(&twin_response, &response_version))
+    {
+        (void)printf("Client updating desired `$version` locally from %ld to %ld\n", twin_property_desired_version_value, response_version);
+        twin_property_desired_version_value = response_version;
+    }
+    else
+    {
+        (void)printf("Failed to retrieve version from response topic.\n");
+        //exit(EXIT_FAILURE);
+    }
 
-    send_reported_property();
-
-//If status 304
-          // There is no payload for a 304 status response.
-          //IOT_SAMPLE_LOG("Twin Section: Desired");
-          //IOT_SAMPLE_LOG("Status: %d", twin_response.status);
-          //IOT_SAMPLE_LOG_AZ_SPAN("Request ID:", twin_response.request_id);
-          //IOT_SAMPLE_LOG_AZ_SPAN("Version:", twin_response.version);
-
-          // Client's desired `$version` should match the response `$version`.
-          /*int64_t response_version;
-          IOT_SAMPLE_EXIT_IF_AZ_FAILED(
-              az_span_atoi64(twin_response.version, &response_version),
-              "Failed converting az_span to int64_t.");
-
-          if (twin_property_desired_version_value != response_version)
-          {
-            IOT_SAMPLE_LOG_ERROR(
-                "Client's desired `$version`: %ld does not match the response `$version`: %ld.",
-                twin_property_desired_version_value,
-                response_version);
+    if (response_status == 200 || response_status == 202)
+    {
+        CAR iot_hub_car;
+        memset(&iot_hub_car, 0, sizeof(CAR));
+        if (parse_twin_document_desired(payload, &iot_hub_car))
+        {
+            update_properties(&iot_hub_car);
+        }
+        send_reported_property();
+    }
+    else if (response_status == 304) // No payload
+    {
+        if (twin_property_desired_version_value != response_version)
+        {
+            printf("Twin desired versions unexpectedly do not match. Client's desired `$version`: %ld, IoT Hub desired `$version`: %ld",
+                twin_property_desired_version_value, response_version);
             exit(EXIT_FAILURE);
-          }
-          */
-
-
+        }
+        printf("Twin desired versions match. Client's desired `$version`: %ld, IoT Hub desired `$version`: %ld.\n",
+            twin_property_desired_version_value, response_version);
+    }
+    else
+    {
+        (void)printf("Response status value %ld unexpected.\n", response_status);
+        exit(EXIT_FAILURE);
+    }
 
     (void)printf("\n"); // Formatting
     return;
 }
-
-static void get_twin_reported_properties_async_callback(IOTHUB_TWIN_RESPONSE_HANDLE twin_response, void* user_context)
-{
-    return;
-}
 #endif
 
-static void patch_twin_desired_properties_callback(DEVICE_TWIN_UPDATE_STATE update_state, const unsigned char* payload, size_t size, void* user_context)
+static void patch_twin_desired_properties_callback(DEVICE_TWIN_UPDATE_STATE update_state, IOTHUB_TWIN_RESPONSE_HANDLE twin_response, const unsigned char* payload, size_t size, void* user_context)
 {
+    // This callback may receive full twin document in payload at subscription, or desired section in payload from server PATCH request.
+    if (update_state != DEVICE_TWIN_UPDATE_PARTIAL)
+    {
+        // Ignore. Will parse Full twin payload response via GetTwinAsync callback.
+        return;
+    }
+
     (void)update_state;
     (void)user_context;
 
@@ -572,14 +593,8 @@ static int receive_method_callback(char const* method_name, unsigned char const*
 //
 // Encoding/Decoding with JSON library
 //
-static bool parse_twin_document(DEVICE_TWIN_UPDATE_STATE update_state, unsigned char const* payload, CAR* out_car, int64_t* out_parsed_desired_version)
+static bool parse_twin_document(unsigned char const* payload, CAR* out_car, int64_t* out_parsed_desired_version)
 {
-    if (update_state != DEVICE_TWIN_UPDATE_COMPLETE) // Twin document is ill-formed.
-    {
-        (void)printf("Failed to parse full twin document.");
-        exit(EXIT_FAILURE);
-    }
-
     bool result = false;
 
     JSON_Value* root_value = json_parse_string(payload);
@@ -635,7 +650,7 @@ static bool parse_twin_document(DEVICE_TWIN_UPDATE_STATE update_state, unsigned 
     if (version != 0)
     {
         *out_parsed_desired_version = version;
-        (void)printf("Parsed desired `%s`: %ld", version_name, *out_parsed_desired_version);
+        (void)printf("Parsed desired `%s`: %ld\n", version_name, *out_parsed_desired_version);
     }
     else // Twin document is ill-formed.
     {

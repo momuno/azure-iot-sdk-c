@@ -37,6 +37,7 @@ extern "C"
     typedef const char* (*pfTransport_GetOption_Product_Info_Callback)(void* ctx);
     typedef void (*pfTransport_Twin_ReportedStateComplete_Callback)(uint32_t item_id, int status_code, void* ctx);
     typedef void (*pfTransport_Twin_RetrievePropertyComplete_Callback)(DEVICE_TWIN_UPDATE_STATE update_state, const unsigned char* payLoad, size_t size, void* ctx);
+    typedef void (*pfTransport_Twin_RetrievePropertyDesired_Callback)(DEVICE_TWIN_UPDATE_STATE update_state, IOTHUB_TWIN_RESPONSE_HANDLE twinResponse, const unsigned char* payLoad, size_t size, void* ctx);
     typedef int (*pfTransport_DeviceMethod_Complete_Callback)(const char* method_name, const unsigned char* payLoad, size_t size, METHOD_HANDLE response_id, void* ctx);
     typedef const char* (*pfTransport_GetOption_Model_Id_Callback)(void* ctx);
 
@@ -67,6 +68,7 @@ extern "C"
         pfTransport_GetOption_Product_Info_Callback prod_info_cb;
         pfTransport_Twin_ReportedStateComplete_Callback twin_rpt_state_complete_cb;
         pfTransport_Twin_RetrievePropertyComplete_Callback twin_retrieve_prop_complete_cb;
+        pfTransport_Twin_RetrievePropertyDesired_Callback twin_retrieve_prop_desired_cb;
         pfTransport_DeviceMethod_Complete_Callback method_complete_cb;
         pfTransport_GetOption_Model_Id_Callback get_model_id_cb;
     } TRANSPORT_CALLBACKS_INFO;
@@ -84,6 +86,7 @@ extern "C"
     typedef IOTHUB_CLIENT_RESULT(*pfIoTHubTransport_GetSendStatus)(IOTHUB_DEVICE_HANDLE handle, IOTHUB_CLIENT_STATUS *iotHubClientStatus);
     typedef int (*pfIoTHubTransport_Subscribe_DeviceTwin)(IOTHUB_DEVICE_HANDLE handle);
     typedef void (*pfIoTHubTransport_Unsubscribe_DeviceTwin)(IOTHUB_DEVICE_HANDLE handle);
+    typedef void (*pfIoTHubTransport_SetDeviceTwinCallback)(IOTHUB_DEVICE_HANDLE handle, IOTHUB_CLIENT_DEVICE_TWIN_CALLBACK deviceTwinCallback, IOTHUB_CLIENT_DEVICE_TWIN_SECTION_CALLBACK deviceTwinSectionCallback);
     typedef IOTHUB_CLIENT_RESULT(*pfIoTHubTransport_GetTwinAsync)(IOTHUB_DEVICE_HANDLE handle, IOTHUB_CLIENT_DEVICE_TWIN_CALLBACK completionCallback, void* callbackContext);
     typedef IOTHUB_CLIENT_RESULT(*pfIoTHubTransport_GetTwinDesiredAsync)(IOTHUB_DEVICE_HANDLE handle, IOTHUB_TWIN_REQUEST_OPTIONS_HANDLE twinRequestOptions, IOTHUB_CLIENT_DEVICE_TWIN_SECTION_CALLBACK completionCallback, void* callbackContext);
     typedef IOTHUB_CLIENT_RESULT(*pfIoTHubTransport_GetTwinReportedAsync)(IOTHUB_DEVICE_HANDLE handle, IOTHUB_TWIN_REQUEST_OPTIONS_HANDLE twinRequestOptions, IOTHUB_CLIENT_DEVICE_TWIN_SECTION_CALLBACK completionCallback, void* callbackContext);
@@ -104,6 +107,7 @@ pfIoTHubTransport_Unsubscribe_DeviceMethod IoTHubTransport_Unsubscribe_DeviceMet
 pfIoTHubTransport_DeviceMethod_Response IoTHubTransport_DeviceMethod_Response;      \
 pfIoTHubTransport_Subscribe_DeviceTwin IoTHubTransport_Subscribe_DeviceTwin;        \
 pfIoTHubTransport_Unsubscribe_DeviceTwin IoTHubTransport_Unsubscribe_DeviceTwin;    \
+pfIoTHubTransport_SetDeviceTwinCallback IoTHubTransport_SetDeviceTwinCallback;      \
 pfIoTHubTransport_ProcessItem IoTHubTransport_ProcessItem;                          \
 pfIoTHubTransport_GetHostname IoTHubTransport_GetHostname;                          \
 pfIoTHubTransport_SetOption IoTHubTransport_SetOption;                              \

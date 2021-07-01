@@ -217,6 +217,21 @@ IOTHUB_CLIENT_RESULT IoTHubModuleClient_LL_SetModuleTwinCallback(IOTHUB_MODULE_C
     return result;
 }
 
+IOTHUB_CLIENT_RESULT IoTHubModuleClient_LL_SetModuleTwinDesiredCallback(IOTHUB_MODULE_CLIENT_LL_HANDLE iotHubModuleClientHandle, IOTHUB_CLIENT_DEVICE_TWIN_SECTION_CALLBACK moduleTwinDesiredCallback, void* userContextCallback)
+{
+    IOTHUB_CLIENT_RESULT result;
+    if (iotHubModuleClientHandle != NULL)
+    {
+        result = IoTHubClientCore_LL_SetDeviceTwinDesiredCallback(iotHubModuleClientHandle->coreHandle, moduleTwinDesiredCallback, userContextCallback);
+    }
+    else
+    {
+        LogError("Input parameter cannot be NULL");
+        result = IOTHUB_CLIENT_INVALID_ARG;
+    }
+    return result;
+}
+
 IOTHUB_CLIENT_RESULT IoTHubModuleClient_LL_SendReportedState(IOTHUB_MODULE_CLIENT_LL_HANDLE iotHubModuleClientHandle, const unsigned char* reportedState, size_t size, IOTHUB_CLIENT_REPORTED_STATE_CALLBACK reportedStateCallback, void* userContextCallback)
 {
     IOTHUB_CLIENT_RESULT result;

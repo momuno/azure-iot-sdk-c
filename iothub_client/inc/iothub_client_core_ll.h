@@ -42,6 +42,7 @@ extern "C"
      MOCKABLE_FUNCTION(, void, IoTHubClientCore_LL_DoWork, IOTHUB_CLIENT_CORE_LL_HANDLE, iotHubClientHandle);
      MOCKABLE_FUNCTION(, IOTHUB_CLIENT_RESULT, IoTHubClientCore_LL_SetOption, IOTHUB_CLIENT_CORE_LL_HANDLE, iotHubClientHandle, const char*, optionName, const void*, value);
      MOCKABLE_FUNCTION(, IOTHUB_CLIENT_RESULT, IoTHubClientCore_LL_SetDeviceTwinCallback, IOTHUB_CLIENT_CORE_LL_HANDLE, iotHubClientHandle, IOTHUB_CLIENT_DEVICE_TWIN_CALLBACK, deviceTwinCallback, void*, userContextCallback);
+     MOCKABLE_FUNCTION(, IOTHUB_CLIENT_RESULT, IoTHubClientCore_LL_SetDeviceTwinDesiredCallback, IOTHUB_CLIENT_CORE_HANDLE, iotHubClientHandle, IOTHUB_CLIENT_DEVICE_TWIN_SECTION_CALLBACK, deviceTwinDesiredCallback, void*, userContextCallback);
      MOCKABLE_FUNCTION(, IOTHUB_CLIENT_RESULT, IoTHubClientCore_LL_SendReportedState, IOTHUB_CLIENT_CORE_LL_HANDLE, iotHubClientHandle, const unsigned char*, reportedState, size_t, size, IOTHUB_CLIENT_REPORTED_STATE_CALLBACK, reportedStateCallback, void*, userContextCallback);
      MOCKABLE_FUNCTION(, IOTHUB_CLIENT_RESULT, IoTHubClientCore_LL_GetTwinAsync, IOTHUB_CLIENT_CORE_LL_HANDLE, iotHubClientHandle, IOTHUB_CLIENT_DEVICE_TWIN_CALLBACK, deviceTwinCallback, void*, userContextCallback);
      MOCKABLE_FUNCTION(, IOTHUB_CLIENT_RESULT, IoTHubClientCore_LL_GetTwinDesiredAsync, IOTHUB_CLIENT_CORE_LL_HANDLE, iotHubClientHandle, IOTHUB_TWIN_REQUEST_OPTIONS_HANDLE, twinRequestOptions, IOTHUB_CLIENT_DEVICE_TWIN_SECTION_CALLBACK, deviceTwinDesiredCallback, void*, userContextCallback);

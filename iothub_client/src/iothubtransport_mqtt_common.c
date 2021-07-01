@@ -252,7 +252,7 @@ typedef struct MQTT_DEVICE_TWIN_ITEM_TAG
     uint32_t iothub_msg_id;
     IOTHUB_DEVICE_TWIN* device_twin_data;
     DEVICE_TWIN_MESSAGE_TYPE device_twin_msg_type;
-    union USER_CALLBACK_TAG
+    struct
     {
         IOTHUB_CLIENT_DEVICE_TWIN_CALLBACK getTwin;
         IOTHUB_CLIENT_DEVICE_TWIN_SECTION_CALLBACK getTwinSection;
@@ -1166,12 +1166,15 @@ static void removeExpiredTwinRequestsFromList(PMQTTTRANSPORT_HANDLE_DATA transpo
             item_timed_out = true;
             transport_data->transport_callbacks.twin_rpt_state_complete_cb(msg_entry->iothub_msg_id, STATUS_CODE_TIMEOUT_VALUE, transport_data->transport_ctx);
         }
-        else if (((current_ms - msg_entry->msgCreationTime) / 1000) >= ON_DEMAND_GET_TWIN_REQUEST_TIMEOUT_SECS) // GET request
+        else if ( ((msg_entry->device_twin_msg_type == DEVICE_TWIN_GET_FULL_REQUEST)    ||
+                  (msg_entry->device_twin_msg_type == DEVICE_TWIN_GET_DESIRED_REQUEST) ||
+                  (msg_entry->device_twin_msg_type == DEVICE_TWIN_GET_REPORTED_REQUEST)) &&
+                  (((current_ms - msg_entry->msgCreationTime) / 1000) >= ON_DEMAND_GET_TWIN_REQUEST_TIMEOUT_SECS) )
         {
             item_timed_out = true;
             if (msg_entry->device_twin_msg_type == DEVICE_TWIN_GET_FULL_REQUEST)
             {
-                 msg_entry->userCallback.getTwin(DEVICE_TWIN_UPDATE_COMPLETE, NULL, 0, msg_entry->userContext);
+                msg_entry->userCallback.getTwin(DEVICE_TWIN_UPDATE_COMPLETE, NULL, 0, msg_entry->userContext);
             }
             else
             {
@@ -1690,7 +1693,21 @@ static void processTwinNotification(PMQTTTRANSPORT_HANDLE_DATA transportData, MQ
         }
         else if (notification_msg) // PATCH DESIRED REQUEST from SERVER
         {
-            transportData->transport_callbacks.twin_retrieve_prop_complete_cb(DEVICE_TWIN_UPDATE_PARTIAL, payload->message, payload->length, transportData->transport_ctx);
+            if (transportData->transport_callbacks.twin_retrieve_prop_complete_cb)
+            {
+                transportData->transport_callbacks.twin_retrieve_prop_complete_cb(DEVICE_TWIN_UPDATE_PARTIAL, payload->message, payload->length, transportData->transport_ctx);
+            }
+
+            if (transportData->transport_callbacks.twin_retrieve_prop_desired_cb)
+            {
+                IOTHUB_TWIN_RESPONSE_HANDLE twin_response = IoTHubTwin_CreateResponse();
+                twin_response->_internal.status = (int64_t)status_code;
+                twin_response->_internal.version = twin_version;
+
+                transportData->transport_callbacks.twin_retrieve_prop_desired_cb(DEVICE_TWIN_UPDATE_PARTIAL, twin_response, payload->message, payload->length, transportData->transport_ctx);
+
+                IoTHubTwin_DestroyResponse(twin_response);
+            }
         }
         else // GET REQUEST or PATCH REPORTED RESPONSE
         {
@@ -1700,9 +1717,11 @@ static void processTwinNotification(PMQTTTRANSPORT_HANDLE_DATA transportData, MQ
                 DLIST_ENTRY saveListEntry;
                 saveListEntry.Flink = dev_twin_item->Flink;
                 MQTT_DEVICE_TWIN_ITEM* msg_entry = containingRecord(dev_twin_item, MQTT_DEVICE_TWIN_ITEM, entry);
+
                 if (request_id == msg_entry->packet_id)
                 {
                     (void)DList_RemoveEntryList(dev_twin_item);
+
                     if (msg_entry->device_twin_msg_type == DEVICE_TWIN_PATCH_REPORTED_RESPONSE)
                     {
                         /* Codes_SRS_IOTHUB_MQTT_TRANSPORT_07_055: [ if device_twin_msg_type is not RETRIEVE_PROPERTIES then mqttNotificationCallback shall call IoTHubClientCore_LL_ReportedStateComplete ] */
@@ -1712,16 +1731,15 @@ static void processTwinNotification(PMQTTTRANSPORT_HANDLE_DATA transportData, MQ
                     }
                     else // GET TWIN REQUEST RESPONSE
                     {
-                        IOTHUB_TWIN_RESPONSE_HANDLE twin_response = IoTHubTwin_CreateResponse();
-                        twin_response->_internal.status = (int64_t)status_code;
-                        twin_response->_internal.version = twin_version;
-
                         if (msg_entry->device_twin_msg_type == DEVICE_TWIN_GET_FULL_REQUEST)
                         {
                             if (msg_entry->userCallback.getTwin == NULL)
                             {
-                                /* Codes_SRS_IOTHUB_MQTT_TRANSPORT_07_054: [ If type is IOTHUB_TYPE_DEVICE_TWIN, then on success if msg_type is RETRIEVE_PROPERTIES then mqttNotificationCallback shall call IoTHubClientCore_LL_RetrievePropertyComplete... ] */
-                                transportData->transport_callbacks.twin_retrieve_prop_complete_cb(DEVICE_TWIN_UPDATE_COMPLETE, payload->message, payload->length, transportData->transport_ctx);
+                                if (transportData->transport_callbacks.twin_retrieve_prop_complete_cb)
+                                {
+                                    /* Codes_SRS_IOTHUB_MQTT_TRANSPORT_07_054: [ If type is IOTHUB_TYPE_DEVICE_TWIN, then on success if msg_type is RETRIEVE_PROPERTIES then mqttNotificationCallback shall call IoTHubClientCore_LL_RetrievePropertyComplete... ] */
+                                    transportData->transport_callbacks.twin_retrieve_prop_complete_cb(DEVICE_TWIN_UPDATE_COMPLETE, payload->message, payload->length, transportData->transport_ctx);
+                                }
                                 // Only after receiving device twin request should we start listening for patches.
                                 (void)subscribeToNotifyStateIfNeeded(transportData);
                             }
@@ -1733,11 +1751,15 @@ static void processTwinNotification(PMQTTTRANSPORT_HANDLE_DATA transportData, MQ
                         }
                         else // DEVICE_TWIN_GET_DESIRED_REQUEST || DEVICE_TWIN_GET_REPORTED_REQUEST
                         {
+                            IOTHUB_TWIN_RESPONSE_HANDLE twin_response = IoTHubTwin_CreateResponse();
+                            twin_response->_internal.status = (int64_t)status_code;
+                            twin_response->_internal.version = twin_version;
+
                             // This is a on-demand get twin request.
                             msg_entry->userCallback.getTwinSection(DEVICE_TWIN_UPDATE_PARTIAL, twin_response, payload->message, payload->length, msg_entry->userContext);
-                        }
 
-                        IoTHubTwin_DestroyResponse(twin_response);
+                            IoTHubTwin_DestroyResponse(twin_response);
+                        }
                     }
 
                     destroyDeviceTwinGetMsg(msg_entry);
@@ -3261,6 +3283,21 @@ void IoTHubTransport_MQTT_Common_Unsubscribe_DeviceTwin(TRANSPORT_LL_HANDLE hand
             STRING_delete(transport_data->topic_NotifyState);
             transport_data->topic_NotifyState = NULL;
         }
+    }
+    else
+    {
+        LogError("Invalid argument to unsubscribe (handle is NULL).");
+    }
+}
+
+void IoTHubTransport_Common_SetDeviceTwinCallback(TRANSPORT_LL_HANDLE handle, IOTHUB_CLIENT_DEVICE_TWIN_CALLBACK twinCallback, IOTHUB_CLIENT_DEVICE_TWIN_SECTION_CALLBACK twinSectionCallback)
+{
+    PMQTTTRANSPORT_HANDLE_DATA transport_data = (PMQTTTRANSPORT_HANDLE_DATA)handle;
+
+    if (transport_data != NULL)
+    {
+        transportData->transport_callbacks.twin_retrieve_prop_complete_cb = twinCallback;
+        transportData->transport_callbacks.twin_retrieve_prop_desired_cb = twinSectionCallback;
     }
     else
     {

@@ -103,6 +103,11 @@ IOTHUB_CLIENT_RESULT IoTHubDeviceClient_LL_SetDeviceTwinCallback(IOTHUB_DEVICE_C
     return IoTHubClientCore_LL_SetDeviceTwinCallback((IOTHUB_CLIENT_CORE_LL_HANDLE)iotHubClientHandle, deviceTwinCallback, userContextCallback);
 }
 
+IOTHUB_CLIENT_RESULT IoTHubDeviceClient_LL_SetDeviceTwinDesiredCallback(IOTHUB_DEVICE_CLIENT_LL_HANDLE iotHubClientHandle, IOTHUB_CLIENT_DEVICE_TWIN_SECTION_CALLBACK deviceTwinDesiredCallback, void* userContextCallback)
+{
+    return IoTHubClientCore_LL_SetDeviceTwinDesiredCallback((IOTHUB_CLIENT_CORE_LL_HANDLE)iotHubClientHandle, deviceTwinDesiredCallback, userContextCallback);
+}
+
 IOTHUB_CLIENT_RESULT IoTHubDeviceClient_LL_GetTwinAsync(IOTHUB_DEVICE_CLIENT_LL_HANDLE iotHubClientHandle, IOTHUB_CLIENT_DEVICE_TWIN_CALLBACK deviceTwinCallback, void* userContextCallback)
 {
     return IoTHubClientCore_LL_GetTwinAsync((IOTHUB_CLIENT_CORE_LL_HANDLE)iotHubClientHandle, deviceTwinCallback, userContextCallback);

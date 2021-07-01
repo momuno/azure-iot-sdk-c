@@ -17,7 +17,6 @@ int IoTHub_Transport_ValidateCallbacks(const TRANSPORT_CALLBACKS_INFO* transport
         transport_cb->send_complete_cb == NULL ||
         transport_cb->prod_info_cb == NULL ||
         transport_cb->twin_rpt_state_complete_cb == NULL ||
-        transport_cb->twin_retrieve_prop_complete_cb == NULL ||
         transport_cb->method_complete_cb == NULL
         )
     {

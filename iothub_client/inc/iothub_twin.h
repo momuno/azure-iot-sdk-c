@@ -93,32 +93,10 @@ MOCKABLE_FUNCTION(, void, IoTHubTwin_DestroyRequestOptions, IOTHUB_TWIN_REQUEST_
 /**
  * @brief  Get twin response
  */
-typedef bool(*IOTHUB_TWIN_RESPONSE_OPTIONS_GET_UCHAR)(IOTHUB_TWIN_RESPONSE_HANDLE twin_response, const unsigned char** value);
-typedef bool(*IOTHUB_TWIN_RESPONSE_OPTIONS_GET_SIZE)(IOTHUB_TWIN_RESPONSE_HANDLE twin_response, size_t* value);
 typedef bool(*IOTHUB_TWIN_RESPONSE_OPTIONS_GET_INT64)(IOTHUB_TWIN_RESPONSE_HANDLE twin_response, int64_t* value);
 
 typedef struct IOTHUB_TWIN_RESPONSE_TAG
 {
-    /**
-     * @brief Get payload for @c IOTHUB_TWIN_RESPONSE
-     *
-     * @param twin_response  Pointer to self.
-     * @param value          Pointer to payload from twin response.
-     * @return true if payload has been set.
-     * @return false if payload has not been set.
-     */
-    IOTHUB_TWIN_RESPONSE_OPTIONS_GET_UCHAR get_payload;
-
-    /**
-     * @brief Get payload size for @c IOTHUB_TWIN_RESPONSE
-     *
-     * @param twin_response  Pointer to self.
-     * @param value          Value of payload size from twin response.
-     * @return true if payload_size has been set.
-     * @return false if payload_size has not been set.
-     */
-    IOTHUB_TWIN_RESPONSE_OPTIONS_GET_SIZE get_payload_size;
-
     /**
      * @brief Get status for @c IOTHUB_TWIN_RESPONSE
      *
