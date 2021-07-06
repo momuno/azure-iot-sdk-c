@@ -86,6 +86,34 @@ static bool twin_response_get_version(IOTHUB_TWIN_RESPONSE_HANDLE twin_response,
     return result;
 }
 
+static void twin_response_set_status(IOTHUB_TWIN_RESPONSE_HANDLE twin_response, int64_t* value)
+{
+    if (!value)
+    {
+        twin_response->_internal.is_status_set = false;
+        twin_response->_internal.status = 0;
+    }
+    else
+    {
+        twin_response->_internal.is_status_set = true;
+        twin_response->_internal.status = *value;
+    }
+}
+
+static void twin_response_set_version(IOTHUB_TWIN_RESPONSE_HANDLE twin_response, int64_t* value)
+{
+    if (!value)
+    {
+        twin_response->_internal.is_version_set = false;
+        twin_response->_internal.version = 0;
+    }
+    else
+    {
+        twin_response->_internal.is_version_set = true;
+        twin_response->_internal.version = *value;
+    }
+}
+
 IOTHUB_TWIN_RESPONSE_HANDLE IoTHubTwin_CreateResponse(void)
 {
     IOTHUB_TWIN_RESPONSE* twin_response;
@@ -97,7 +125,10 @@ IOTHUB_TWIN_RESPONSE_HANDLE IoTHubTwin_CreateResponse(void)
         memset((void*)twin_response, 0, sizeof(IOTHUB_TWIN_RESPONSE));
 
         twin_response->get_status = twin_response_get_status;
+        twin_response->set_status = twin_response_set_status;
+
         twin_response->get_version = twin_response_get_version;
+        twin_response->set_version = twin_response_set_version;
 
         twin_response->_internal.is_status_set = false;
         twin_response->_internal.status = 0;

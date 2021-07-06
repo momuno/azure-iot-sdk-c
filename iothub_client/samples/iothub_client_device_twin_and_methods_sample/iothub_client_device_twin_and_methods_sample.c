@@ -127,7 +127,7 @@ static void patch_twin_desired_properties_callback(DEVICE_TWIN_UPDATE_STATE upda
 static void patch_twin_reported_properties_callback(int status_code, void* user_context);
 static int receive_method_callback(char const* method_name, unsigned char const* payload, size_t size, unsigned char** response, size_t* response_size, void* user_context);
 static bool parse_twin_document(unsigned char const* payload, CAR* out_car, int64_t* out_parsed_desired_version);
-static bool parse_twin_document_desired(unsigned char const* payload, CAR* out_car);
+static bool parse_twin_document_desired(const unsigned char* payload, CAR* out_car, int64_t* out_parsed_desired_version);
 static char* malloc_and_build_json_reported_property(void);
 
 /*
@@ -301,16 +301,28 @@ static void connect_device_client_send_and_receive_messages(void)
     // message, or a direct method. Returns if timeout occurs. After TIMEOUT_SEND_GET_REQUEST_MS
     // seconds, request the twin document's desired properties.
     time_t receive_message_start_time = time(NULL);
+#if defined SAMPLE_MQTT || defined SAMPLE_MQTT_OVER_WEBSOCKETS
     time_t send_get_request_start_time = time(NULL);
+#endif
     time_t current_time;
+    message_received = false;
+
     for (uint8_t message_count = 0; message_count < MAX_MESSAGE_COUNT; message_count++)
     {
         // Wait up to TIMEOUT_RECEIVE_MS to receive a message.
         while(1)
         {
-            current_time = time(NULL);
-            if (message_received || (1000 * (current_time - receive_message_start_time)) >= TIMEOUT_RECEIVE_MS)
+            if (message_received)
             {
+                receive_message_start_time = time(NULL);
+                message_received = false;
+                break;
+            }
+
+            current_time = time(NULL);
+            if ((1000 * (current_time - receive_message_start_time)) >= TIMEOUT_RECEIVE_MS)
+            {
+                IOT_SAMPLE_LOG("Receive message timeout expired.");
                 receive_message_start_time = time(NULL);
                 message_received = false;
                 break;
@@ -440,7 +452,7 @@ static void get_twin_async_callback(DEVICE_TWIN_UPDATE_STATE update_state, const
     {
         update_properties(&iot_hub_car);
     }
-    (void)printf("Client updating desired `$version` locally from %ld to %ld", twin_property_desired_version_value, parsed_desired_version);
+    (void)printf("Client updating desired `$version` locally from %ld to %ld.\n", twin_property_desired_version_value, parsed_desired_version);
     twin_property_desired_version_value = parsed_desired_version;
 
     send_reported_property();
@@ -453,7 +465,7 @@ static void get_twin_desired_properties_async_callback(DEVICE_TWIN_UPDATE_STATE 
 {
     if (update_state != DEVICE_TWIN_UPDATE_PARTIAL) // Twin document is ill-formed.
     {
-        (void)printf("Failed to parse twin desired document.");
+        (void)printf("Payload does not a twin desired document.\n");
         exit(EXIT_FAILURE);
     }
 
@@ -464,7 +476,7 @@ static void get_twin_desired_properties_async_callback(DEVICE_TWIN_UPDATE_STATE 
 
     // Retrieve response status
     int64_t response_status;
-    if (twin_response->get_version(twin_response, &response_status))
+    if (twin_response->get_status(twin_response, &response_status))
     {
         printf("Status: %ld\n", response_status);
     }
@@ -474,11 +486,12 @@ static void get_twin_desired_properties_async_callback(DEVICE_TWIN_UPDATE_STATE 
         exit(EXIT_FAILURE);
     }
 
+/* NOT YET IMPLEMENTED ON HUB
     // Retrieve response version
     int64_t response_version;
     if (twin_response->get_version(twin_response, &response_version))
     {
-        (void)printf("Client updating desired `$version` locally from %ld to %ld\n", twin_property_desired_version_value, response_version);
+        (void)printf("Client updating desired `$version` locally from %ld to %ld.\n", twin_property_desired_version_value, response_version);
         twin_property_desired_version_value = response_version;
     }
     else
@@ -486,7 +499,7 @@ static void get_twin_desired_properties_async_callback(DEVICE_TWIN_UPDATE_STATE 
         (void)printf("Failed to retrieve version from response topic.\n");
         //exit(EXIT_FAILURE);
     }
-
+*/
     if (response_status == 200 || response_status == 202)
     {
         CAR iot_hub_car;
@@ -498,15 +511,16 @@ static void get_twin_desired_properties_async_callback(DEVICE_TWIN_UPDATE_STATE 
         send_reported_property();
     }
     else if (response_status == 304) // No payload
-    {
+    {/*
         if (twin_property_desired_version_value != response_version)
         {
-            printf("Twin desired versions unexpectedly do not match. Client's desired `$version`: %ld, IoT Hub desired `$version`: %ld",
+            printf("Twin desired versions unexpectedly do not match. Client's desired `$version`: %ld, IoT Hub desired `$version`: %ld\n",
                 twin_property_desired_version_value, response_version);
             exit(EXIT_FAILURE);
         }
         printf("Twin desired versions match. Client's desired `$version`: %ld, IoT Hub desired `$version`: %ld.\n",
-            twin_property_desired_version_value, response_version);
+            twin_property_desired_version_value, response_version);*/
+        printf("Twin desired versions match. Client's desired `$version`: %ld.\n", twin_property_desired_version_value);
     }
     else
     {
@@ -535,12 +549,16 @@ static void patch_twin_desired_properties_callback(DEVICE_TWIN_UPDATE_STATE upda
     (void)printf("\npatch_twin_desired_properties_callback payload: %.*s\n", (int32_t)size, payload);
 
     // Parse the twin desired properties received from IoT Hub.
+    int64_t parsed_desired_version;
     CAR iot_hub_car;
     memset(&iot_hub_car, 0, sizeof(CAR));
-    if (parse_twin_document_desired(payload, &iot_hub_car))
+    if (parse_desired_patch(payload, &iot_hub_car, &parsed_desired_version))
     {
         update_properties(&iot_hub_car);
     }
+    (void)printf("Client updating desired `$version` locally from %ld to %ld.\n", twin_property_desired_version_value, parsed_desired_version);
+    twin_property_desired_version_value = parsed_desired_version;
+
     send_reported_property();
 
     (void)printf("\n"); // Formatting
@@ -593,6 +611,33 @@ static int receive_method_callback(char const* method_name, unsigned char const*
 //
 static bool parse_twin_document(unsigned char const* payload, CAR* out_car, int64_t* out_parsed_desired_version)
 {
+    bool parsed = parse_twin_document_desired(payload, out_car);
+
+    // For a GET full twin request, each section's $version may need to be parsed.
+    if (out_parsed_desired_version)
+    {
+        JSON_Value* root_value = json_parse_string(payload);
+        JSON_Object* root_object = json_value_get_object(root_value);
+
+        char* version_name = TWIN_DESIRED "." TWIN_VERSION;
+        double version = json_object_dotget_number(root_object, version_name);
+        if (version != 0)
+        {
+            *out_parsed_desired_version = version;
+            (void)printf("Parsed desired property `%s`: %ld\n", version_name, *out_parsed_desired_version);
+        }
+        else // Twin document is ill-formed.
+        {
+            (void)printf("Failed to parse for desired `%s` property.\n", version_name);
+            exit(EXIT_FAILURE);
+        }
+    }
+
+    return parsed;
+}
+
+static bool parse_twin_document_desired(unsigned char const* payload, CAR* out_car)
+{
     bool result = false;
 
     JSON_Value* root_value = json_parse_string(payload);
@@ -601,12 +646,11 @@ static bool parse_twin_document(unsigned char const* payload, CAR* out_car, int6
     int change_oil_reminder;
     double allowed_max_speed;
     double software_version;
-    double version;
 
+    // NOTE: The response payload to a GET desired twin request will have the `desired` delimiter.
     char* change_oil_reminder_name = TWIN_DESIRED "." TWIN_CHANGE_OIL_REMINDER;
     char* allowed_max_speed_name = TWIN_DESIRED "." TWIN_STATE "." TWIN_ALLOWED_MAX_SPEED;
     char* software_version_name = TWIN_DESIRED "." TWIN_STATE "." TWIN_SOFTWARE_VERSION;
-    char* version_name = TWIN_DESIRED "." TWIN_VERSION;
 
     change_oil_reminder = json_object_dotget_boolean(root_object, change_oil_reminder_name);
     if (change_oil_reminder != -1)
@@ -644,22 +688,10 @@ static bool parse_twin_document(unsigned char const* payload, CAR* out_car, int6
         (void)printf("`%s` property was not found in desired property message.\n", software_version_name);
     }
 
-    version = json_object_dotget_number(root_object, version_name);
-    if (version != 0)
-    {
-        *out_parsed_desired_version = version;
-        (void)printf("Parsed desired `%s`: %ld", version_name, *out_parsed_desired_version);
-    }
-    else // Twin document is ill-formed.
-    {
-        (void)printf("Failed to parse for desired `%s` property.\n", version_name);
-        exit(EXIT_FAILURE);
-    }
-
     return result;
 }
 
-static bool parse_twin_document_desired(const unsigned char* payload, CAR* out_car)
+static bool parse_desired_patch(const unsigned char* payload, CAR* out_car, int64_t* out_parsed_desired_version)
 {
     bool result = false;
 
@@ -670,6 +702,7 @@ static bool parse_twin_document_desired(const unsigned char* payload, CAR* out_c
     double allowed_max_speed;
     double software_version;
 
+    // The PATCH desired message will not have the `desired` delimieter.
     char* change_oil_reminder_name = TWIN_CHANGE_OIL_REMINDER;
     char* allowed_max_speed_name = TWIN_STATE "." TWIN_ALLOWED_MAX_SPEED;
     char* software_version_name = TWIN_STATE "." TWIN_SOFTWARE_VERSION;
@@ -708,6 +741,22 @@ static bool parse_twin_document_desired(const unsigned char* payload, CAR* out_c
     else
     {
         (void)printf("`%s` property was not found in desired property message.\n", software_version_name);
+    }
+
+    if (out_parsed_desired_version)
+    {
+        char* version_name = TWIN_VERSION;
+        double version = json_object_dotget_number(root_object, version_name);
+        if (version != 0)
+        {
+            *out_parsed_desired_version = version;
+            (void)printf("Parsed desired property `%s`: %ld\n", version_name, *out_parsed_desired_version);
+        }
+        else // Twin document is ill-formed.
+        {
+            (void)printf("Failed to parse for desired `%s` property.\n", version_name);
+            exit(EXIT_FAILURE);
+        }
     }
 
     return result;

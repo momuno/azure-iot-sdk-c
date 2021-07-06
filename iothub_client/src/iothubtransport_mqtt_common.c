@@ -1719,8 +1719,9 @@ static void processTwinNotification(PMQTTTRANSPORT_HANDLE_DATA transportData, MQ
                     else // GET TWIN REQUEST RESPONSE
                     {
                         IOTHUB_TWIN_RESPONSE_HANDLE twin_response = IoTHubTwin_CreateResponse();
-                        twin_response->_internal.status = (int64_t)status_code;
-                        twin_response->_internal.version = twin_version;
+                        int64_t int64_status_code = (int64_t)status_code;
+                        twin_response->set_status(twin_response, &int64_status_code);
+                        twin_response->set_version(twin_response, &twin_version);
 
                         if (msg_entry->device_twin_msg_type == DEVICE_TWIN_GET_FULL_REQUEST)
                         {

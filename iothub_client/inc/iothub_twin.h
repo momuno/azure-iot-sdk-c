@@ -93,41 +93,20 @@ MOCKABLE_FUNCTION(, void, IoTHubTwin_DestroyRequestOptions, IOTHUB_TWIN_REQUEST_
 /**
  * @brief  Get twin response
  */
-typedef bool(*IOTHUB_TWIN_RESPONSE_OPTIONS_GET_UCHAR)(IOTHUB_TWIN_RESPONSE_HANDLE twin_response, const unsigned char** value);
-typedef bool(*IOTHUB_TWIN_RESPONSE_OPTIONS_GET_SIZE)(IOTHUB_TWIN_RESPONSE_HANDLE twin_response, size_t* value);
-typedef bool(*IOTHUB_TWIN_RESPONSE_OPTIONS_GET_INT64)(IOTHUB_TWIN_RESPONSE_HANDLE twin_response, int64_t* value);
+typedef bool(*IOTHUB_TWIN_RESPONSE_GET_INT64)(IOTHUB_TWIN_RESPONSE_HANDLE twin_response, int64_t* value);
+typedef void(*IOTHUB_TWIN_RESPONSE_SET_INT64)(IOTHUB_TWIN_RESPONSE_HANDLE twin_response, int64_t* value);
 
 typedef struct IOTHUB_TWIN_RESPONSE_TAG
 {
     /**
-     * @brief Get payload for @c IOTHUB_TWIN_RESPONSE
-     *
-     * @param twin_response  Pointer to self.
-     * @param value          Pointer to payload from twin response.
-     * @return true if payload has been set.
-     * @return false if payload has not been set.
-     */
-    IOTHUB_TWIN_RESPONSE_OPTIONS_GET_UCHAR get_payload;
-
-    /**
-     * @brief Get payload size for @c IOTHUB_TWIN_RESPONSE
-     *
-     * @param twin_response  Pointer to self.
-     * @param value          Value of payload size from twin response.
-     * @return true if payload_size has been set.
-     * @return false if payload_size has not been set.
-     */
-    IOTHUB_TWIN_RESPONSE_OPTIONS_GET_SIZE get_payload_size;
-
-    /**
      * @brief Get status for @c IOTHUB_TWIN_RESPONSE
      *
      * @param twin_response  Pointer to self.
-     * @param value          Value of version from twin response.
-     * @return true if version has been set.
-     * @return false if version has not been set.
+     * @param value          Value of status from twin response.
+     * @return true if status has been set.
+     * @return false if status has not been set.
      */
-    IOTHUB_TWIN_RESPONSE_OPTIONS_GET_INT64 get_status;
+    IOTHUB_TWIN_RESPONSE_GET_INT64 get_status;
 
     /**
      * @brief Get version for @c IOTHUB_TWIN_RESPONSE
@@ -137,7 +116,25 @@ typedef struct IOTHUB_TWIN_RESPONSE_TAG
      * @return true if status has been set.
      * @return false if status has not been set.
      */
-    IOTHUB_TWIN_RESPONSE_OPTIONS_GET_INT64 get_version;
+    IOTHUB_TWIN_RESPONSE_GET_INT64 get_version;
+
+    /**
+     * @brief Set status for @c IOTHUB_TWIN_RESPONSE
+     *
+     * @param twin_response  Pointer to self.
+     * @param value          Pointer to value to set the status.
+     *                       May be NULL to reset status to "not set".
+     */
+    IOTHUB_TWIN_RESPONSE_SET_INT64 set_status;
+
+    /**
+     * @brief Set version for @c IOTHUB_TWIN_RESPONSE
+     *
+     * @param twin_response  Pointer to self.
+     * @param value          Pointer to value to set the version.
+     *                       May be NULL to reset version to "not set".
+     */
+    IOTHUB_TWIN_RESPONSE_SET_INT64 set_version;
 
     struct
     {
