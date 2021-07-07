@@ -16,7 +16,8 @@
 #include "iothub_device_client.h"
 #include "iothub_module_client.h"
 #include "iothub_client_options.h"
-#include "iothub_devicetwin.h"
+#include "iothub_twin.h"
+//#include "iothub_devicetwin.h" ///???? where is this!?
 
 #include "iothub_account.h"
 #include "iothubtest.h"
@@ -169,10 +170,10 @@ typedef struct DEVICE_DESIRED_DATA_TAG
 {
     bool receivedCallBack;                     // true when device callback has been called
     DEVICE_TWIN_UPDATE_STATE update_state;     // status reported by the callback
+    IOTHUB_TWIN_RESPONSE_HANDLE twin_response;
     char *cb_payload;
     LOCK_HANDLE lock;
 } DEVICE_DESIRED_DATA;
-
 
 static const char *REPORTED_PAYLOAD_FORMAT = "{\"integer_property\": %d, \"string_property\": \"%s\", \"array\": [%d, \"%s\"] }";
 static char *malloc_and_fill_reported_payload(const char *string, int aint)
@@ -431,7 +432,7 @@ void dt_e2e_send_reported_test(IOTHUB_CLIENT_TRANSPORT_PROVIDER protocol, IOTHUB
     }
 }
 
- 
+
 
 
 static const char *COMPLETE_DESIRED_PAYLOAD_FORMAT = "{\"properties\":{\"desired\":{\"integer_property\": %d, \"string_property\": \"%s\", \"array\": [%d, \"%s\"]}}}";
@@ -501,6 +502,50 @@ static void deviceTwinCallback(DEVICE_TWIN_UPDATE_STATE update_state, const unsi
     }
 }
 
+static void deviceTwinSectionCallback(DEVICE_TWIN_UPDATE_STATE update_state, IOTHUB_TWIN_RESPONSE_HANDLE twin_response, const unsigned char* payload, size_t size, void* userContextCallback)
+{
+    // Retrieve response status
+    int64_t response_status;
+    if (!twin_response->get_status(twin_response, &response_status))
+    {
+        LogError("Failed to retrieve status from response topic.\n");
+    }
+
+/* NOT YET IMPLEMENTED ON HUB
+    // Retrieve response version
+    int64_t response_version;
+    if (!twin_response->get_version(twin_response, &response_version))
+    {
+        LogError("Failed to retrieve version from response topic.\n");
+    }
+*/
+
+    LogInfo("Callback:: Receive twin_response status=<%lu>, version=?; Received payload len=<%lu>, data=<%.*s>\n",
+            response_status, (unsigned long)size, (int)size, payload);
+
+    DEVICE_DESIRED_DATA *device = (DEVICE_DESIRED_DATA *)userContextCallback;
+    if (Lock(device->lock) == LOCK_ERROR)
+    {
+        LogError("Lock failed");
+    }
+    else
+    {
+        device->update_state = update_state;
+        device->receivedCallBack = true;
+        if (device->twin_response != NULL)
+        {
+            IoTHubTwin_DestroyRequestOptions(device->twin_response);
+        }
+        device->twin_response = twin_response;
+        if (device->cb_payload != NULL)
+        {
+            free(device->cb_payload);
+        }
+        device->cb_payload = malloc_and_copy_unsigned_char(payload, size);
+        (void) Unlock(device->lock);
+    }
+}
+
 static DEVICE_DESIRED_DATA *device_desired_data_init()
 {
     DEVICE_DESIRED_DATA *retValue;
@@ -521,6 +566,7 @@ static DEVICE_DESIRED_DATA *device_desired_data_init()
         else
         {
             retValue->receivedCallBack = false;
+            retValue->twin_response = NULL;
             retValue->cb_payload = NULL;
         }
     }
@@ -798,8 +844,356 @@ static void request_full_twin_and_wait_for_response(IOTHUB_PROVISIONED_DEVICE* d
         {
             if (deviceDesiredData->receivedCallBack)
             {
+                ASSERT_ARE_EQUAL(DEVICE_TWIN_UPDATE_STATE, deviceDesiredData->update_state, DEVICE_TWIN_UPDATE_COMPLETE);
                 ASSERT_IS_NOT_NULL(deviceDesiredData->cb_payload);
                 ASSERT_IS_TRUE(strlen(deviceDesiredData->cb_payload) > 0);
+                callbackReceived = deviceDesiredData->receivedCallBack;
+                Unlock(deviceDesiredData->lock);
+                break;
+            }
+            Unlock(deviceDesiredData->lock);
+        }
+        ThreadAPI_Sleep(1000);
+    }
+    ASSERT_IS_TRUE(callbackReceived, "Did not receive the GetTwinAsync call back");
+}
+
+static void parse_json_get_twin_version(const char* payload, DEVICE_TWIN_MESSAGE_TYPE message_type, int64_t* out_version)
+{
+    JSON_Value* root_value = json_parse_string(payload);
+    JSON_Object* root_object = json_value_get_object(root_value);
+    char* version_name;
+
+    if (message_type == DEVICE_TWIN_GET_DESIRED_REQUEST)
+    {
+        version_name = "desired.$version"
+    }
+    else if (message_type == DEVICE_TWIN_GET_REPORTED_REQUEST)
+    {
+        version_name = "reported.$version"
+    }
+    else if (message_type == DEVICE_TWIN_GET_FULL_REQUEST)
+    {
+        LogError("There is no $version associated with the entire twin document.");
+    }
+
+    double version = json_object_dotget_number(root_object, version_name);
+    ASSERT_ARE_NOT_EQUAL(int64_t, 0, version, "Failed to parse $version.")
+
+    *out_version = version;
+}
+
+static void request_twin_desired_reported_sections_and_wait_for_response(IOTHUB_PROVISIONED_DEVICE* deviceToUse, DEVICE_DESIRED_DATA *deviceDesiredData)
+{
+    IOTHUB_TWIN_REQUEST_OPTIONS_HANDLE twin_request_options = IoTHubTwin_CreateRequestOptions();
+    ASSERT_IS_NOT_NULL(twin_request_options, "Could not invoke IoTHubTwin_CreateRequestOptions");
+
+    int64_t response_status;
+    int64_t device_current_version;
+    // int64_t response_version;
+    int64_t parsed_version;
+
+    //
+    // GetTwinDesiredAsync
+    //
+
+    // Test basic call without if-not-version property in topic.
+    // Expected status 200. Expected version > 0. Expected payload size > 0.
+    if (deviceToUse->moduleConnectionString != NULL)
+    {
+        ASSERT_ARE_EQUAL(IOTHUB_CLIENT_RESULT, IoTHubModuleClient_GetTwinDesiredAsync(iothub_moduleclient_handle, twin_request_options, deviceTwinSectionCallback, deviceDesiredData), IOTHUB_CLIENT_OK);
+    }
+    else
+    {
+        ASSERT_ARE_EQUAL(IOTHUB_CLIENT_RESULT, IoTHubDeviceClient_GetTwinDesiredAsync(iothub_deviceclient_handle, twin_request_options, deviceTwinSectionCallback, deviceDesiredData), IOTHUB_CLIENT_OK);
+    }
+
+    bool callbackReceived = false;
+    time_t beginOperation, nowTime;
+    beginOperation = time(NULL);
+    while (
+        (nowTime = time(NULL)),
+        (difftime(nowTime, beginOperation) < MAX_CLOUD_TRAVEL_TIME) // time box
+        )
+    {
+        if (Lock(deviceDesiredData->lock) != LOCK_OK)
+        {
+            ASSERT_FAIL("Lock failed");
+        }
+        else
+        {
+            if (deviceDesiredData->receivedCallBack)
+            {
+                ASSERT_ARE_EQUAL(DEVICE_TWIN_UPDATE_STATE, deviceDesiredData->update_state, DEVICE_TWIN_UPDATE_PARTIAL);
+                ASSERT_IS_NOT_NULL(deviceDesiredData->twin_response);
+                ASSERT_IS_TRUE(deviceDesiredData->twin_response->get_status(deviceDesiredData->twin_response, &response_status));
+                ASSERT_ARE_EQUAL(int64_t, 200, response_status);
+                // ASSERT_IS_TRUE(deviceDesiredData->twin_response->get_version(deviceDesiredData->twin_response, &response_version));
+                // ASSERT_IS_TRUE(response_version > 0);
+                ASSERT_IS_NOT_NULL(deviceDesiredData->cb_payload);
+                ASSERT_IS_TRUE(strlen(deviceDesiredData->cb_payload) > 0);
+
+                parse_json_get_twin_version(deviceDesiredData->cb_payload, DEVICE_TWIN_GET_DESIRED_REQUEST, &parsed_version);
+                // ASSERT_ARE_EQUAL(int64_t, parsed_version, response_version);
+
+                callbackReceived = deviceDesiredData->receivedCallBack;
+                Unlock(deviceDesiredData->lock);
+                break;
+            }
+            Unlock(deviceDesiredData->lock);
+        }
+        ThreadAPI_Sleep(1000);
+    }
+    ASSERT_IS_TRUE(callbackReceived, "Did not receive the GetTwinAsync call back");
+
+
+    // Test if-not-version for mismatched version.
+    // Expected status 200. Expected version > 0. Expected payload size > 0.
+    device_desired_current_version = 0; // 0 is not a valid version value, so will not match the Hub's version.
+    twin_request_options->set_current_version(twin_request_options, &device_desired_current_version);
+    if (deviceToUse->moduleConnectionString != NULL)
+    {
+        ASSERT_ARE_EQUAL(IOTHUB_CLIENT_RESULT, IoTHubModuleClient_GetTwinDesiredAsync(iothub_moduleclient_handle, twin_request_options, deviceTwinSectionCallback, deviceDesiredData), IOTHUB_CLIENT_OK);
+    }
+    else
+    {
+        ASSERT_ARE_EQUAL(IOTHUB_CLIENT_RESULT, IoTHubDeviceClient_GetTwinDesiredAsync(iothub_deviceclient_handle, twin_request_options, deviceTwinSectionCallback, deviceDesiredData), IOTHUB_CLIENT_OK);
+    }
+
+    callbackReceived = false;
+    beginOperation = time(NULL);
+    while (
+        (nowTime = time(NULL)),
+        (difftime(nowTime, beginOperation) < MAX_CLOUD_TRAVEL_TIME) // time box
+        )
+    {
+        if (Lock(deviceDesiredData->lock) != LOCK_OK)
+        {
+            ASSERT_FAIL("Lock failed");
+        }
+        else
+        {
+            if (deviceDesiredData->receivedCallBack)
+            {
+                ASSERT_ARE_EQUAL(DEVICE_TWIN_UPDATE_STATE, deviceDesiredData->update_state, DEVICE_TWIN_UPDATE_PARTIAL);
+                ASSERT_IS_NOT_NULL(deviceDesiredData->twin_response);
+                ASSERT_IS_TRUE(deviceDesiredData->twin_response->get_status(deviceDesiredData->twin_response, &response_status));
+                ASSERT_ARE_EQUAL(int64_t, 200, response_status);
+                // ASSERT_IS_TRUE(deviceDesiredData->twin_response->get_version(deviceDesiredData->twin_response, &response_version));
+                // ASSERT_IS_TRUE(response_version > 0);
+                ASSERT_IS_NOT_NULL(deviceDesiredData->cb_payload);
+                ASSERT_IS_TRUE(strlen(deviceDesiredData->cb_payload) > 0);
+
+                parse_json_get_twin_version(deviceDesiredData->cb_payload, DEVICE_TWIN_GET_DESIRED_REQUEST, &parsed_version);
+                // ASSERT_ARE_EQUAL(int64_t, parsed_version, response_version);
+
+                callbackReceived = deviceDesiredData->receivedCallBack;
+                Unlock(deviceDesiredData->lock);
+                break;
+            }
+            Unlock(deviceDesiredData->lock);
+        }
+        ThreadAPI_Sleep(1000);
+    }
+    ASSERT_IS_TRUE(callbackReceived, "Did not receive the GetTwinAsync call back");
+
+
+    // Test if-not-version for matched versions.
+    // Expected status 304. Expected version > 0. Expected payload size == 0.
+    device_desired_current_version = parsed_version;
+    twin_request_options->set_current_version(twin_request_options, &device_desired_current_version);
+    if (deviceToUse->moduleConnectionString != NULL)
+    {
+        ASSERT_ARE_EQUAL(IOTHUB_CLIENT_RESULT, IoTHubModuleClient_GetTwinDesiredAsync(iothub_moduleclient_handle, twin_request_options, deviceTwinSectionCallback, deviceDesiredData), IOTHUB_CLIENT_OK);
+    }
+    else
+    {
+        ASSERT_ARE_EQUAL(IOTHUB_CLIENT_RESULT, IoTHubDeviceClient_GetTwinDesiredAsync(iothub_deviceclient_handle, twin_request_options, deviceTwinSectionCallback, deviceDesiredData), IOTHUB_CLIENT_OK);
+    }
+
+    callbackReceived = false;
+    beginOperation = time(NULL);
+    while (
+        (nowTime = time(NULL)),
+        (difftime(nowTime, beginOperation) < MAX_CLOUD_TRAVEL_TIME) // time box
+        )
+    {
+        if (Lock(deviceDesiredData->lock) != LOCK_OK)
+        {
+            ASSERT_FAIL("Lock failed");
+        }
+        else
+        {
+            if (deviceDesiredData->receivedCallBack)
+            {
+                ASSERT_ARE_EQUAL(DEVICE_TWIN_UPDATE_STATE, deviceDesiredData->update_state, DEVICE_TWIN_UPDATE_PARTIAL);
+                ASSERT_IS_NOT_NULL(deviceDesiredData->twin_response);
+                ASSERT_IS_TRUE(deviceDesiredData->twin_response->get_status(deviceDesiredData->twin_response, &response_status));
+                ASSERT_ARE_EQUAL(int64_t, 304, response_status);
+                // ASSERT_IS_TRUE(deviceDesiredData->twin_response->get_version(deviceDesiredData->twin_response, &response_version));
+                // ASSERT_IS_TRUE(response_version > 0);
+                ASSERT_IS_NOT_NULL(deviceDesiredData->cb_payload);
+                ASSERT_ARE_EQUAL(size_t, 0, strlen(deviceDesiredData->cb_payload));
+
+                parse_json_get_twin_version(deviceDesiredData->cb_payload, DEVICE_TWIN_GET_DESIRED_REQUEST, &parsed_version);
+                // ASSERT_ARE_EQUAL(int64_t, parsed_version, response_version);
+
+                callbackReceived = deviceDesiredData->receivedCallBack;
+                Unlock(deviceDesiredData->lock);
+                break;
+            }
+            Unlock(deviceDesiredData->lock);
+        }
+        ThreadAPI_Sleep(1000);
+    }
+    ASSERT_IS_TRUE(callbackReceived, "Did not receive the GetTwinAsync call back");
+
+
+    //
+    // GetTwinReportedAsync
+    //
+
+    // Test basic call without if-not-version property in topic.
+    // Expected status 200. Expected version > 0. Expected payload size > 0.
+    if (deviceToUse->moduleConnectionString != NULL)
+    {
+        ASSERT_ARE_EQUAL(IOTHUB_CLIENT_RESULT, IoTHubModuleClient_GetTwinReportedAsync(iothub_moduleclient_handle, twin_request_options, deviceTwinSectionCallback, deviceDesiredData), IOTHUB_CLIENT_OK);
+    }
+    else
+    {
+        ASSERT_ARE_EQUAL(IOTHUB_CLIENT_RESULT, IoTHubDeviceClient_GetTwinReportedAsync(iothub_deviceclient_handle, twin_request_options, deviceTwinSectionCallback, deviceDesiredData), IOTHUB_CLIENT_OK);
+    }
+
+    bool callbackReceived = false;
+    time_t beginOperation, nowTime;
+    beginOperation = time(NULL);
+    while (
+        (nowTime = time(NULL)),
+        (difftime(nowTime, beginOperation) < MAX_CLOUD_TRAVEL_TIME) // time box
+        )
+    {
+        if (Lock(deviceDesiredData->lock) != LOCK_OK)
+        {
+            ASSERT_FAIL("Lock failed");
+        }
+        else
+        {
+            if (deviceDesiredData->receivedCallBack)
+            {
+                ASSERT_ARE_EQUAL(DEVICE_TWIN_UPDATE_STATE, deviceDesiredData->update_state, DEVICE_TWIN_UPDATE_PARTIAL);
+                ASSERT_IS_NOT_NULL(deviceDesiredData->twin_response);
+                ASSERT_IS_TRUE(deviceDesiredData->twin_response->get_status(deviceDesiredData->twin_response, &response_status));
+                ASSERT_ARE_EQUAL(int64_t, 200, response_status);
+                // ASSERT_IS_TRUE(deviceDesiredData->twin_response->get_version(deviceDesiredData->twin_response, &response_version));
+                // ASSERT_IS_TRUE(response_version > 0);
+                ASSERT_IS_NOT_NULL(deviceDesiredData->cb_payload);
+                ASSERT_IS_TRUE(strlen(deviceDesiredData->cb_payload) > 0);
+
+                parse_json_get_twin_version(deviceDesiredData->cb_payload, DEVICE_TWIN_GET_REPORTED_REQUEST, &parsed_version);
+                // ASSERT_ARE_EQUAL(int64_t, parsed_version, response_version);
+
+                callbackReceived = deviceDesiredData->receivedCallBack;
+                Unlock(deviceDesiredData->lock);
+                break;
+            }
+            Unlock(deviceDesiredData->lock);
+        }
+        ThreadAPI_Sleep(1000);
+    }
+    ASSERT_IS_TRUE(callbackReceived, "Did not receive the GetTwinAsync call back");
+
+
+    // Test if-not-version for mismatched version.
+    // Expected status 200. Expected version > 0. Expected payload size > 0.
+    device_desired_current_version = 0; // 0 is not a valid version value, so will not match the Hub's version.
+    twin_request_options->set_current_version(twin_request_options, &device_desired_current_version);
+    if (deviceToUse->moduleConnectionString != NULL)
+    {
+        ASSERT_ARE_EQUAL(IOTHUB_CLIENT_RESULT, IoTHubModuleClient_GetTwinReportedAsync(iothub_moduleclient_handle, twin_request_options, deviceTwinSectionCallback, deviceDesiredData), IOTHUB_CLIENT_OK);
+    }
+    else
+    {
+        ASSERT_ARE_EQUAL(IOTHUB_CLIENT_RESULT, IoTHubDeviceClient_GetTwinReportedAsync(iothub_deviceclient_handle, twin_request_options, deviceTwinSectionCallback, deviceDesiredData), IOTHUB_CLIENT_OK);
+    }
+
+    callbackReceived = false;
+    beginOperation = time(NULL);
+    while (
+        (nowTime = time(NULL)),
+        (difftime(nowTime, beginOperation) < MAX_CLOUD_TRAVEL_TIME) // time box
+        )
+    {
+        if (Lock(deviceDesiredData->lock) != LOCK_OK)
+        {
+            ASSERT_FAIL("Lock failed");
+        }
+        else
+        {
+            if (deviceDesiredData->receivedCallBack)
+            {
+                ASSERT_ARE_EQUAL(DEVICE_TWIN_UPDATE_STATE, deviceDesiredData->update_state, DEVICE_TWIN_UPDATE_PARTIAL);
+                ASSERT_IS_NOT_NULL(deviceDesiredData->twin_response);
+                ASSERT_IS_TRUE(deviceDesiredData->twin_response->get_status(deviceDesiredData->twin_response, &response_status));
+                ASSERT_ARE_EQUAL(int64_t, 200, response_status);
+                // ASSERT_IS_TRUE(deviceDesiredData->twin_response->get_version(deviceDesiredData->twin_response, &response_version));
+                // ASSERT_IS_TRUE(response_version > 0);
+                ASSERT_IS_NOT_NULL(deviceDesiredData->cb_payload);
+                ASSERT_IS_TRUE(strlen(deviceDesiredData->cb_payload) > 0);
+
+                parse_json_get_twin_version(deviceDesiredData->cb_payload, DEVICE_TWIN_GET_REPORTED_REQUEST, &parsed_version);
+                // ASSERT_ARE_EQUAL(int64_t, parsed_version, response_version);
+
+                callbackReceived = deviceDesiredData->receivedCallBack;
+                Unlock(deviceDesiredData->lock);
+                break;
+            }
+            Unlock(deviceDesiredData->lock);
+        }
+        ThreadAPI_Sleep(1000);
+    }
+    ASSERT_IS_TRUE(callbackReceived, "Did not receive the GetTwinAsync call back");
+
+
+    // Test if-not-version for matched versions.
+    // Expected status 304. Expected version > 0. Expected payload size == 0.
+    device_desired_current_version = parsed_version;
+    twin_request_options->set_current_version(twin_request_options, &device_desired_current_version);
+    if (deviceToUse->moduleConnectionString != NULL)
+    {
+        ASSERT_ARE_EQUAL(IOTHUB_CLIENT_RESULT, IoTHubModuleClient_GetTwinReportedAsync(iothub_moduleclient_handle, twin_request_options, deviceTwinSectionCallback, deviceDesiredData), IOTHUB_CLIENT_OK);
+    }
+    else
+    {
+        ASSERT_ARE_EQUAL(IOTHUB_CLIENT_RESULT, IoTHubDeviceClient_GetTwinReportedAsync(iothub_deviceclient_handle, twin_request_options, deviceTwinSectionCallback, deviceDesiredData), IOTHUB_CLIENT_OK);
+    }
+
+    callbackReceived = false;
+    beginOperation = time(NULL);
+    while (
+        (nowTime = time(NULL)),
+        (difftime(nowTime, beginOperation) < MAX_CLOUD_TRAVEL_TIME) // time box
+        )
+    {
+        if (Lock(deviceDesiredData->lock) != LOCK_OK)
+        {
+            ASSERT_FAIL("Lock failed");
+        }
+        else
+        {
+            if (deviceDesiredData->receivedCallBack)
+            {
+                ASSERT_ARE_EQUAL(DEVICE_TWIN_UPDATE_STATE, deviceDesiredData->update_state, DEVICE_TWIN_UPDATE_PARTIAL);
+                ASSERT_IS_NOT_NULL(deviceDesiredData->twin_response);
+                ASSERT_IS_TRUE(deviceDesiredData->twin_response->get_status(deviceDesiredData->twin_response, &response_status));
+                ASSERT_ARE_EQUAL(int64_t, 304, response_status);
+                // ASSERT_IS_TRUE(deviceDesiredData->twin_response->get_version(deviceDesiredData->twin_response, &response_version));
+                // ASSERT_IS_TRUE(response_version > 0);
+                ASSERT_IS_NOT_NULL(deviceDesiredData->cb_payload);
+                ASSERT_ARE_EQUAL(size_t, 0, strlen(deviceDesiredData->cb_payload));
+
+                parse_json_get_twin_version(deviceDesiredData->cb_payload, DEVICE_TWIN_GET_REPORTED_REQUEST, &parsed_version);
+                // ASSERT_ARE_EQUAL(int64_t, parsed_version, response_version);
+
                 callbackReceived = deviceDesiredData->receivedCallBack;
                 Unlock(deviceDesiredData->lock);
                 break;
@@ -828,6 +1222,23 @@ void dt_e2e_get_twin_async_test(IOTHUB_CLIENT_TRANSPORT_PROVIDER protocol, IOTHU
     device_desired_deinit(deviceDesiredData);
 }
 
+void dt_e2e_get_twin_desired_reported_sections_async_test(IOTHUB_CLIENT_TRANSPORT_PROVIDER protocol, IOTHUB_ACCOUNT_AUTH_METHOD accountAuthMethod)
+{
+    // arrange
+    IOTHUB_PROVISIONED_DEVICE* deviceToUse = IoTHubAccount_GetDevice(g_iothubAcctInfo, accountAuthMethod);
+
+    DEVICE_DESIRED_DATA *deviceDesiredData = device_desired_data_init();
+    ASSERT_IS_NOT_NULL(deviceDesiredData, "failed to create the device client data");
+
+    dt_e2e_create_client_handle(deviceToUse, protocol);
+
+    request_twin_desired_reported_sections_and_wait_for_response(deviceToUse, deviceDesiredData);
+
+    // cleanup
+    destroy_on_device_or_module();
+    device_desired_deinit(deviceDesiredData);
+}
+
 // dt_e2e_send_module_id_test makes sure that when OPTION_MODEL_ID is specified at creation time, then
 // the Service Twin has it specified.
 void dt_e2e_send_module_id_test(IOTHUB_CLIENT_TRANSPORT_PROVIDER protocol, IOTHUB_ACCOUNT_AUTH_METHOD accountAuthMethod, const char* modelId)
@@ -840,7 +1251,7 @@ void dt_e2e_send_module_id_test(IOTHUB_CLIENT_TRANSPORT_PROVIDER protocol, IOTHU
 
     dt_e2e_create_client_handle(deviceToUse, protocol);
     // Set the ModelId prior to any network I/O.  The caller passes the modelId because the the modelId
-    // is persisted on the Hub after initial set.  So to truly test that the modelId is sent across on 
+    // is persisted on the Hub after initial set.  So to truly test that the modelId is sent across on
     // each test, we need to have the caller change it on each invocation of this test helper.
     setoption_on_device_or_module(OPTION_MODEL_ID, modelId, "Cannot specify modelId");
 
@@ -852,10 +1263,10 @@ void dt_e2e_send_module_id_test(IOTHUB_CLIENT_TRANSPORT_PROVIDER protocol, IOTHU
     const char *connectionString = IoTHubAccount_GetIoTHubConnString(g_iothubAcctInfo);
     IOTHUB_SERVICE_CLIENT_AUTH_HANDLE iotHubServiceClientHandle = IoTHubServiceClientAuth_CreateFromConnectionString(connectionString);
     ASSERT_IS_NOT_NULL(iotHubServiceClientHandle, "IoTHubServiceClientAuth_CreateFromConnectionString failed");
-    
+
     IOTHUB_SERVICE_CLIENT_DEVICE_TWIN_HANDLE serviceClientDeviceTwinHandle = IoTHubDeviceTwin_Create(iotHubServiceClientHandle);
     ASSERT_IS_NOT_NULL(serviceClientDeviceTwinHandle, "IoTHubDeviceTwin_Create failed");
-    
+
     char *twinData = dt_e2e_get_twin_from_service(serviceClientDeviceTwinHandle, deviceToUse);
 
     JSON_Value *rootValue = json_parse_string(twinData);
