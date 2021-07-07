@@ -1791,14 +1791,14 @@ static int extractMqttProperties(PMQTTTRANSPORT_HANDLE_DATA transportData, IOTHU
 //
 // processTwinNotification processes device and module twin updates made by IoT Hub / IoT Edge.
 //
-static void processTwinNotification(PMQTTTRANSPORT_HANDLE_DATA transportData, MQTT_MESSAGE_HANDLE msgHandle, const char* topicName)
+static void processTwinNotification(PMQTTTRANSPORT_HANDLE_DATA transportData, MQTT_MESSAGE_HANDLE msgHandle, const char* resp_topic)
 {
     size_t request_id;
     int status_code;
     int64_t twin_version;
     bool notification_msg;
 
-    if (parseDeviceTwinTopicInfo(topic_resp, &notification_msg, &request_id, &status_code, &twin_version) != 0)
+    if (parseDeviceTwinTopicInfo(resp_topic, &notification_msg, &request_id, &status_code, &twin_version) != 0)
     {
         LogError("Failure: parsing device topic info");
     }
