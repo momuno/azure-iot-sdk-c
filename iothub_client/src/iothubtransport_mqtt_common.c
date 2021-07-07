@@ -252,7 +252,7 @@ typedef struct MQTT_DEVICE_TWIN_ITEM_TAG
     uint32_t iothub_msg_id;
     IOTHUB_DEVICE_TWIN* device_twin_data;
     DEVICE_TWIN_MESSAGE_TYPE device_twin_msg_type;
-    struct
+    union
     {
         IOTHUB_CLIENT_DEVICE_TWIN_CALLBACK getTwin;
         IOTHUB_CLIENT_DEVICE_TWIN_SECTION_CALLBACK getTwinSection;

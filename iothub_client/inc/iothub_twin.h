@@ -62,7 +62,7 @@ typedef struct IOTHUB_TWIN_REQUEST_OPTIONS_TAG
      *        current version of the requested twin section will be sent. If this option is
      *        AZ_SPAN_EMPTY, the IoT Hub's current version of the requested twin section will be
      *        sent.
-     * @note  Valid range is [1, 9223372036854775807]. Default is AZ_SPAN_EMPTY.
+     * @note  Valid range is [1, 9223372036854775807].
      * @note  This property is optional.
      **/
     IOTHUB_TWIN_REQUEST_OPTIONS_SET_INT64 set_current_version;
@@ -113,8 +113,8 @@ typedef struct IOTHUB_TWIN_RESPONSE_TAG
      *
      * @param twin_response  Pointer to self.
      * @param value          Value of status from twin response.
-     * @return true if status has been set.
-     * @return false if status has not been set.
+     * @return true if version has been set.
+     * @return false if version has not been set.
      */
     IOTHUB_TWIN_RESPONSE_GET_INT64 get_version;
 
