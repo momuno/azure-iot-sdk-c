@@ -10,10 +10,13 @@ union IOTHUB_IDENTITY_INFO_TAG;
 typedef union IOTHUB_IDENTITY_INFO_TAG IOTHUB_IDENTITY_INFO;
 
 #include "azure_c_shared_utility/doublylinkedlist.h"
-#include "azure_c_shared_utility/strings.h"
 #include "azure_c_shared_utility/platform.h"
+#include "azure_c_shared_utility/strings.h"
+
 #include "internal/iothub_client_authorization.h"
+
 #include "iothub_message.h"
+#include "iothub_twin.h"
 
 struct MESSAGE_DISPOSITION_CONTEXT_TAG;
 typedef struct MESSAGE_DISPOSITION_CONTEXT_TAG* MESSAGE_DISPOSITION_CONTEXT_HANDLE;
@@ -85,6 +88,8 @@ extern "C"
     typedef int (*pfIoTHubTransport_Subscribe_DeviceTwin)(IOTHUB_DEVICE_HANDLE handle);
     typedef void (*pfIoTHubTransport_Unsubscribe_DeviceTwin)(IOTHUB_DEVICE_HANDLE handle);
     typedef IOTHUB_CLIENT_RESULT(*pfIoTHubTransport_GetTwinAsync)(IOTHUB_DEVICE_HANDLE handle, IOTHUB_CLIENT_DEVICE_TWIN_CALLBACK completionCallback, void* callbackContext);
+    typedef IOTHUB_CLIENT_RESULT(*pfIoTHubTransport_GetTwinDesiredAsync)(IOTHUB_DEVICE_HANDLE handle, IOTHUB_TWIN_REQUEST_OPTIONS_HANDLE twinRequestOptions, IOTHUB_CLIENT_DEVICE_TWIN_SECTION_CALLBACK completionCallback, void* callbackContext);
+    typedef IOTHUB_CLIENT_RESULT(*pfIoTHubTransport_GetTwinReportedAsync)(IOTHUB_DEVICE_HANDLE handle, IOTHUB_TWIN_REQUEST_OPTIONS_HANDLE twinRequestOptions, IOTHUB_CLIENT_DEVICE_TWIN_SECTION_CALLBACK completionCallback, void* callbackContext);
     typedef IOTHUB_CLIENT_RESULT(*pfIotHubTransport_SendMessageDisposition)(MESSAGE_CALLBACK_INFO* messageData, IOTHUBMESSAGE_DISPOSITION_RESULT disposition);
     typedef IOTHUB_PROCESS_ITEM_RESULT(*pfIoTHubTransport_ProcessItem)(TRANSPORT_LL_HANDLE handle, IOTHUB_IDENTITY_TYPE item_type, IOTHUB_IDENTITY_INFO* iothub_item);
     typedef int(*pfIoTHubTransport_Subscribe_DeviceMethod)(IOTHUB_DEVICE_HANDLE handle);
@@ -118,6 +123,8 @@ pfIoTHubTransport_Subscribe_InputQueue IoTHubTransport_Subscribe_InputQueue;    
 pfIoTHubTransport_Unsubscribe_InputQueue IoTHubTransport_Unsubscribe_InputQueue;    \
 pfIoTHubTransport_SetCallbackContext IoTHubTransport_SetCallbackContext;            \
 pfIoTHubTransport_GetTwinAsync IoTHubTransport_GetTwinAsync;                        \
+pfIoTHubTransport_GetTwinDesiredAsync IoTHubTransport_GetTwinDesiredAsync;          \
+pfIoTHubTransport_GetTwinReportedAsync IoTHubTransport_GetTwinReportedAsync;        \
 pfIoTHubTransport_GetSupportedPlatformInfo IoTHubTransport_GetSupportedPlatformInfo     /*there's an intentional missing ; on this line*/
 
     struct TRANSPORT_PROVIDER_TAG

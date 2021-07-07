@@ -2,13 +2,17 @@
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 
 #include <stdlib.h>
+
+#include "azure_c_shared_utility/http_proxy_io.h"
+#include "azure_c_shared_utility/platform.h"
+#include "azure_c_shared_utility/tlsio.h"
 #include "azure_c_shared_utility/xio.h"
 #include "azure_c_shared_utility/wsio.h"
-#include "azure_c_shared_utility/tlsio.h"
-#include "azure_c_shared_utility/platform.h"
-#include "azure_c_shared_utility/http_proxy_io.h"
-#include "iothubtransportmqtt_websockets.h"
+
 #include "internal/iothubtransport_mqtt_common.h"
+
+#include "iothub_twin.h"
+#include "iothubtransportmqtt_websockets.h"
 
 static XIO_HANDLE getWebSocketsIOTransport(const char* fully_qualified_name, const MQTT_TRANSPORT_PROXY_OPTIONS* mqtt_transport_proxy_options)
 {
@@ -159,6 +163,18 @@ static IOTHUB_CLIENT_RESULT IoTHubTransportMqtt_WS_GetTwinAsync(IOTHUB_DEVICE_HA
     return IoTHubTransport_MQTT_Common_GetTwinAsync(handle, completionCallback, callbackContext);
 }
 
+// Codes_SRS_IOTHUB_MQTT_WEBSOCKET_TRANSPORT_09_001: [ IoTHubTransportMqtt_WS_GetTwinDesiredAsync shall call into the IoTHubTransport_MQTT_Common_GetTwinDesiredAsync ]
+static IOTHUB_CLIENT_RESULT IoTHubTransportMqtt_WS_GetTwinDesiredAsync(IOTHUB_DEVICE_HANDLE handle, IOTHUB_TWIN_REQUEST_OPTIONS_HANDLE twinRequestOptions, IOTHUB_CLIENT_DEVICE_TWIN_SECTION_CALLBACK deviceTwinDesiredCompletionCallback,  void* callbackContext)
+{
+    return IoTHubTransport_MQTT_Common_GetTwinDesiredAsync(handle, twinRequestOptions, deviceTwinDesiredCompletionCallback, callbackContext);
+}
+
+// Codes_SRS_IOTHUB_MQTT_WEBSOCKET_TRANSPORT_09_001: [ IoTHubTransportMqtt_WS_GetTwinReportedAsync shall call into the IoTHubTransport_MQTT_Common_GetTwinReportedAsync ]
+static IOTHUB_CLIENT_RESULT IoTHubTransportMqtt_WS_GetTwinReportedAsync(IOTHUB_DEVICE_HANDLE handle, IOTHUB_TWIN_REQUEST_OPTIONS_HANDLE twinRequestOptions, IOTHUB_CLIENT_DEVICE_TWIN_SECTION_CALLBACK deviceTwinReportedCompletionCallback, void* callbackContext)
+{
+    return IoTHubTransport_MQTT_Common_GetTwinReportedAsync(handle, twinRequestOptions, deviceTwinReportedCompletionCallback, callbackContext);
+}
+
 /* Codes_SRS_IOTHUB_MQTT_WEBSOCKET_TRANSPORT_07_014: [ IoTHubTransportMqtt_WS_ProcessItem shall call into the IoTHubTransport_MQTT_Common_DoWork function ] */
 static IOTHUB_PROCESS_ITEM_RESULT IoTHubTransportMqtt_WS_ProcessItem(TRANSPORT_LL_HANDLE handle, IOTHUB_IDENTITY_TYPE item_type, IOTHUB_IDENTITY_INFO* iothub_item)
 {
@@ -248,7 +264,7 @@ IoTHubTransport_Destroy = IoTHubTransportMqtt_WS_Destroy
 IoTHubTransport_Subscribe = IoTHubTransportMqtt_WS_Subscribe
 IoTHubTransport_Unsubscribe = IoTHubTransportMqtt_WS_Unsubscribe
 IoTHubTransport_DoWork = IoTHubTransportMqtt_WS_DoWork
-IoTHubTransport_SetOption = IoTHubTransportMqtt_WS_SetOption 
+IoTHubTransport_SetOption = IoTHubTransportMqtt_WS_SetOption
 IoTHubTransport_GetSupportedPlatformInfo = IoTHubTransportMqtt_WS_GetSupportedPlatformInfo ] */
 static TRANSPORT_PROVIDER thisTransportProvider_WebSocketsOverTls = {
     IoTHubTransportMqtt_WS_SendMessageDisposition,
@@ -273,6 +289,8 @@ static TRANSPORT_PROVIDER thisTransportProvider_WebSocketsOverTls = {
     IoTHubTransportMqtt_WS_Unsubscribe_InputQueue,
     IotHubTransportMqtt_WS_SetCallbackContext,
     IoTHubTransportMqtt_WS_GetTwinAsync,
+    IoTHubTransportMqtt_WS_GetTwinDesiredAsync,
+    IoTHubTransportMqtt_WS_GetTwinReportedAsync,
     IotHubTransportMqtt_WS_GetSupportedPlatformInfo
 };
 

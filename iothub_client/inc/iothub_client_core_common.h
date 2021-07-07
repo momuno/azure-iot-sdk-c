@@ -9,8 +9,9 @@
 #include "azure_macro_utils/macro_utils.h"
 #include "umock_c/umock_c_prod.h"
 
-#include "iothub_transport_ll.h"
 #include "iothub_message.h"
+#include "iothub_transport_ll.h"
+#include "iothub_twin.h"
 
 #ifdef __cplusplus
 extern "C"
@@ -149,14 +150,23 @@ extern "C"
 
     MU_DEFINE_ENUM_WITHOUT_INVALID(DEVICE_TWIN_UPDATE_STATE, DEVICE_TWIN_UPDATE_STATE_VALUES);
 
+#define DEVICE_TWIN_MESSAGE_TYPE_VALUES     \
+    DEVICE_TWIN_PATCH_REPORTED_RESPONSE,    \
+    DEVICE_TWIN_GET_FULL_REQUEST,           \
+    DEVICE_TWIN_GET_DESIRED_REQUEST,        \
+    DEVICE_TWIN_GET_REPORTED_REQUEST        \
+
+    MU_DEFINE_ENUM_WITHOUT_INVALID(DEVICE_TWIN_MESSAGE_TYPE, DEVICE_TWIN_MESSAGE_TYPE_VALUES);
+
     typedef void(*IOTHUB_CLIENT_EVENT_CONFIRMATION_CALLBACK)(IOTHUB_CLIENT_CONFIRMATION_RESULT result, void* userContextCallback);
     typedef void(*IOTHUB_CLIENT_CONNECTION_STATUS_CALLBACK)(IOTHUB_CLIENT_CONNECTION_STATUS result, IOTHUB_CLIENT_CONNECTION_STATUS_REASON reason, void* userContextCallback);
     typedef IOTHUBMESSAGE_DISPOSITION_RESULT (*IOTHUB_CLIENT_MESSAGE_CALLBACK_ASYNC)(IOTHUB_MESSAGE_HANDLE message, void* userContextCallback);
 
-    typedef void(*IOTHUB_CLIENT_DEVICE_TWIN_CALLBACK)(DEVICE_TWIN_UPDATE_STATE update_state, const unsigned char* payLoad, size_t size, void* userContextCallback);
+    typedef void(*IOTHUB_CLIENT_DEVICE_TWIN_CALLBACK)(DEVICE_TWIN_UPDATE_STATE updateState, const unsigned char* payload, size_t size, void* userContextCallback);
+    typedef void(*IOTHUB_CLIENT_DEVICE_TWIN_SECTION_CALLBACK)(DEVICE_TWIN_UPDATE_STATE updateState, IOTHUB_TWIN_RESPONSE_HANDLE twinResponse, const unsigned char* payload, size_t size, void* userContextCallback);
     typedef void(*IOTHUB_CLIENT_REPORTED_STATE_CALLBACK)(int status_code, void* userContextCallback);
-    typedef int(*IOTHUB_CLIENT_DEVICE_METHOD_CALLBACK_ASYNC)(const char* method_name, const unsigned char* payload, size_t size, unsigned char** response, size_t* response_size, void* userContextCallback);
-    typedef int(*IOTHUB_CLIENT_INBOUND_DEVICE_METHOD_CALLBACK)(const char* method_name, const unsigned char* payload, size_t size, METHOD_HANDLE method_id, void* userContextCallback);
+    typedef int(*IOTHUB_CLIENT_DEVICE_METHOD_CALLBACK_ASYNC)(const char* methodName, const unsigned char* payload, size_t size, unsigned char** response, size_t* responseSize, void* userContextCallback);
+    typedef int(*IOTHUB_CLIENT_INBOUND_DEVICE_METHOD_CALLBACK)(const char* methodName, const unsigned char* payload, size_t size, METHOD_HANDLE methodId, void* userContextCallback);
 
 
 #define IOTHUB_CLIENT_FILE_UPLOAD_GET_DATA_RESULT_VALUES \
