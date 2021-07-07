@@ -708,7 +708,7 @@ static void dispatch_user_callbacks(IOTHUB_CLIENT_CORE_INSTANCE* iotHubClientIns
             case CALLBACK_TYPE_DEVICE_TWIN:
             {
                 // Callback if for GetTwinAsync
-                if ( queued_cb->iothub_callback.dev_twin_cb_info.userCallback.getTwin) //neither getTwin nor getTwinSection is set.  Not a GET response.
+                if ( queued_cb->iothub_callback.dev_twin_cb_info.userCallback.getTwin)
                 {
                     if (queued_cb->iothub_callback.dev_twin_cb_info.updateState == DEVICE_TWIN_UPDATE_COMPLETE)
                     {
@@ -915,8 +915,6 @@ static int ScheduleWork_Thread(void* threadArgument)
                 {
                     dispatch_user_callbacks(iotHubClientInstance, call_backs);
                 }
-
-
             }
         }
         else

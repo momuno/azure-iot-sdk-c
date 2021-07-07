@@ -562,21 +562,8 @@ static int parseDeviceTwinTopicInfo(const char* resp_topic, bool* patch_msg, siz
                     if (STRING_TOKENIZER_get_next_token(token_handle, token_value, "/?$rid=") == 0)
                     {
                         *request_id = (size_t)atol(STRING_c_str(token_value));
-                       // STRING_HANDLE remainder = token_value;
-/*
-                        if (STRING_TOKENIZER_get_next_token(token_handle, token_value, "&") != 0) // No properties past /?$rid={remainder}
-                        {
-                            *request_id = (size_t)atol(STRING_c_str(remainder));
-                        }
-                        else // Remainder contains more properties.
-                        {
-                            *request_id = (size_t)atol(STRING_c_str(token_value));
 
-                            if (STRING_TOKENIZER_get_next_token(token_handle, token_value, "$version=") == 0)
-                            {
-                                *twin_version = (int64_t)atoll(STRING_c_str(token_value));
-                            }
-                        }*/
+                        // TO DO: Parse for extra $version property on GET request responses
                     }
                     *patch_msg = false;
                     result = 0;

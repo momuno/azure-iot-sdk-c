@@ -1184,10 +1184,7 @@ static void on_get_device_twin_section_completed(DEVICE_TWIN_UPDATE_STATE update
     else
     {
         GET_TWIN_CONTEXT* getTwinCtx = (GET_TWIN_CONTEXT*)userContextCallback;
-        if (payload)
-        {
-            getTwinCtx->userCallback.getTwinSection(updateState, twinResponse, payload, size, getTwinCtx->userContext);
-        }
+        getTwinCtx->userCallback.getTwinSection(updateState, twinResponse, payload, size, getTwinCtx->userContext);
         free(getTwinCtx);
     }
 }

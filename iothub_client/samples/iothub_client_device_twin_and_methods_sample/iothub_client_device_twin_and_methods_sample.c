@@ -58,7 +58,7 @@
 #endif
 
 // Connection String -- Paste in the iothub device connection string.
-static const char* connection_string = "[device connection string]";
+static const char* connection_string = "[device connections string]";
 
 static IOTHUB_DEVICE_CLIENT_HANDLE iothub_client;
 static IOTHUB_TWIN_REQUEST_OPTIONS_HANDLE twin_request_options;
@@ -125,9 +125,10 @@ static void get_twin_desired_properties_async_callback(DEVICE_TWIN_UPDATE_STATE 
 #endif
 static void patch_twin_desired_properties_callback(DEVICE_TWIN_UPDATE_STATE update_state, const unsigned char* payload, size_t size, void* user_context);
 static void patch_twin_reported_properties_callback(int status_code, void* user_context);
-static int receive_method_callback(char const* method_name, unsigned char const* payload, size_t size, unsigned char** response, size_t* response_size, void* user_context);
-static bool parse_twin_document(unsigned char const* payload, CAR* out_car, int64_t* out_parsed_desired_version);
-static bool parse_twin_document_desired(const unsigned char* payload, CAR* out_car, int64_t* out_parsed_desired_version);
+static int receive_method_callback(const char* method_name, unsigned char const* payload, size_t size, unsigned char** response, size_t* response_size, void* user_context);
+static bool parse_twin_document(const unsigned char* payload, CAR* out_car, int64_t* out_parsed_desired_version);
+static bool parse_twin_document_desired(const unsigned char* payload, CAR* out_car);
+static bool parse_desired_patch(const unsigned char* payload, CAR* out_car, int64_t* out_parsed_desired_version);
 static char* malloc_and_build_json_reported_property(void);
 
 /*
@@ -322,7 +323,7 @@ static void connect_device_client_send_and_receive_messages(void)
             current_time = time(NULL);
             if ((1000 * (current_time - receive_message_start_time)) >= TIMEOUT_RECEIVE_MS)
             {
-                IOT_SAMPLE_LOG("Receive message timeout expired.");
+                printf("Receive message timeout expired.\n");
                 receive_message_start_time = time(NULL);
                 message_received = false;
                 break;
@@ -511,7 +512,8 @@ static void get_twin_desired_properties_async_callback(DEVICE_TWIN_UPDATE_STATE 
         send_reported_property();
     }
     else if (response_status == 304) // No payload
-    {/*
+    {
+    /* NOT YET IMPLEMENTED ON HUB
         if (twin_property_desired_version_value != response_version)
         {
             printf("Twin desired versions unexpectedly do not match. Client's desired `$version`: %ld, IoT Hub desired `$version`: %ld\n",
@@ -519,7 +521,8 @@ static void get_twin_desired_properties_async_callback(DEVICE_TWIN_UPDATE_STATE 
             exit(EXIT_FAILURE);
         }
         printf("Twin desired versions match. Client's desired `$version`: %ld, IoT Hub desired `$version`: %ld.\n",
-            twin_property_desired_version_value, response_version);*/
+            twin_property_desired_version_value, response_version);
+    */
         printf("Twin desired versions match. Client's desired `$version`: %ld.\n", twin_property_desired_version_value);
     }
     else
@@ -609,7 +612,7 @@ static int receive_method_callback(char const* method_name, unsigned char const*
 //
 // Encoding/Decoding with JSON library
 //
-static bool parse_twin_document(unsigned char const* payload, CAR* out_car, int64_t* out_parsed_desired_version)
+static bool parse_twin_document(const unsigned char* payload, CAR* out_car, int64_t* out_parsed_desired_version)
 {
     bool parsed = parse_twin_document_desired(payload, out_car);
 
@@ -636,7 +639,7 @@ static bool parse_twin_document(unsigned char const* payload, CAR* out_car, int6
     return parsed;
 }
 
-static bool parse_twin_document_desired(unsigned char const* payload, CAR* out_car)
+static bool parse_twin_document_desired(const unsigned char* payload, CAR* out_car)
 {
     bool result = false;
 
