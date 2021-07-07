@@ -497,7 +497,6 @@ static void iothub_ll_device_twin_callback(DEVICE_TWIN_UPDATE_STATE updateState,
         queue_cb_info.userContextCallback = queue_context->userContext;
         queue_cb_info.iothub_callback.dev_twin_cb_info.updateState = updateState;
         queue_cb_info.iothub_callback.dev_twin_cb_info.userCallback.getTwin = NULL;
-        queue_cb_info.iothub_callback.dev_twin_cb_info.userCallback.getTwinSection = NULL;
         queue_cb_info.iothub_callback.dev_twin_cb_info.userContext = NULL;
         queue_cb_info.iothub_callback.dev_twin_cb_info.twinResponse = NULL;
 

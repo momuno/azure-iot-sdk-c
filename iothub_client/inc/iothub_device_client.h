@@ -288,9 +288,9 @@ extern "C"
     * @param    deviceTwinCallback      The callback specified by the device client to receive the
      *                                  twin document.
     *                                   If any failures occur, the callback is invoked passing
-    *                                   @c NULL as payLoad and zero as size.
+    *                                   @c NULL as payload and zero as size.
     * @param    twinRequestOptions      The GET twin request options struct. Can only be used when
-    *                                   requesting desired or reported specific sections.
+    *                                   requesting desired or reported sections.
     * @param    userContextCallback     User specified context that will be provided to the
     *                                   callback. This can be @c NULL.
     *

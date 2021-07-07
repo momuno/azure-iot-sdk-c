@@ -549,6 +549,8 @@ static int retrievDeviceMethodRidInfo(const char* resp_topic, STRING_HANDLE meth
 //
 static int parseDeviceTwinTopicInfo(const char* resp_topic, bool* patch_msg, size_t* request_id, int* status_code, int64_t* twin_version)
 {
+    (void)twin_version; // NOT YET IMPLEMENTED
+
     int result;
     STRING_TOKENIZER_HANDLE token_handle = STRING_TOKENIZER_create_from_char(resp_topic);
     if (token_handle == NULL)
@@ -599,7 +601,8 @@ static int parseDeviceTwinTopicInfo(const char* resp_topic, bool* patch_msg, siz
                     {
                         *request_id = (size_t)atol(STRING_c_str(token_value));
 
-                        // TO DO: Parse for extra $version property on GET request responses
+                        // TO DO: Parse for extra $version property on GET request responses.
+                        // NOT YET IMPLEMENTED ON HUB.
                     }
                     *patch_msg = false;
                     result = 0;
@@ -1809,10 +1812,9 @@ static void processTwinNotification(PMQTTTRANSPORT_HANDLE_DATA transportData, MQ
         }
         else if (notification_msg) // PATCH DESIRED REQUEST from SERVER
         {
-
             transportData->transport_callbacks.twin_retrieve_prop_complete_cb(DEVICE_TWIN_UPDATE_PARTIAL, payload->message, payload->length, transportData->transport_ctx);
         }
-        else // GET REQUEST or PATCH REPORTED RESPONSE
+        else // GET REQUEST RESPONSE or PATCH REPORTED RESPONSE
         {
             PDLIST_ENTRY dev_twin_item = transportData->ack_waiting_queue.Flink;
             while (dev_twin_item != &transportData->ack_waiting_queue)

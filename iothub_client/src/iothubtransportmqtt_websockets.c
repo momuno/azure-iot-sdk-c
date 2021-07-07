@@ -2,14 +2,17 @@
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 
 #include <stdlib.h>
+
+#include "azure_c_shared_utility/http_proxy_io.h"
+#include "azure_c_shared_utility/platform.h"
+#include "azure_c_shared_utility/tlsio.h"
 #include "azure_c_shared_utility/xio.h"
 #include "azure_c_shared_utility/wsio.h"
-#include "azure_c_shared_utility/tlsio.h"
-#include "azure_c_shared_utility/platform.h"
-#include "azure_c_shared_utility/http_proxy_io.h"
-#include "iothubtransportmqtt_websockets.h"
+
 #include "internal/iothubtransport_mqtt_common.h"
+
 #include "iothub_twin.h"
+#include "iothubtransportmqtt_websockets.h"
 
 static XIO_HANDLE getWebSocketsIOTransport(const char* fully_qualified_name, const MQTT_TRANSPORT_PROXY_OPTIONS* mqtt_transport_proxy_options)
 {

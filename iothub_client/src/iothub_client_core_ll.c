@@ -21,9 +21,6 @@
 #include "internal/iothub_client_authorization.h"
 #include "internal/iothub_client_private.h"
 #include "internal/iothub_client_diagnostic.h"
-#ifndef DONT_USE_UPLOADTOBLOB
-#include "internal/iothub_client_ll_uploadtoblob.h"
-#endif
 #include "internal/iothubtransport.h"
 
 #include "iothub_client_core_ll.h"
@@ -31,6 +28,10 @@
 #include "iothub_client_version.h"
 #include "iothub_transport_ll.h"
 #include "iothub_twin.h"
+
+#ifndef DONT_USE_UPLOADTOBLOB
+#include "internal/iothub_client_ll_uploadtoblob.h"
+#endif
 
 #ifdef USE_EDGE_MODULES
 #include "azure_c_shared_utility/envvariable.h"

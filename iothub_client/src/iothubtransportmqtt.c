@@ -2,13 +2,16 @@
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 
 #include <stdlib.h>
-#include "iothubtransportmqtt.h"
-#include "azure_c_shared_utility/xio.h"
-#include "azure_c_shared_utility/tlsio.h"
+
 #include "azure_c_shared_utility/platform.h"
-#include "internal/iothubtransport_mqtt_common.h"
+#include "azure_c_shared_utility/tlsio.h"
+#include "azure_c_shared_utility/xio.h"
 #include "azure_c_shared_utility/xlogging.h"
+
+#include "internal/iothubtransport_mqtt_common.h"
+
 #include "iothub_twin.h"
+#include "iothubtransportmqtt.h"
 
 static XIO_HANDLE getIoTransportProvider(const char* fully_qualified_name, const MQTT_TRANSPORT_PROXY_OPTIONS* mqtt_transport_proxy_options)
 {
