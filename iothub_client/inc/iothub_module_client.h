@@ -19,10 +19,11 @@
 #include <stdint.h>
 
 #include "umock_c/umock_c_prod.h"
-#include "iothub_transport_ll.h"
-#include "iothub_client_core_ll.h"
+
 #include "iothub_client_core.h"
+#include "iothub_client_core_ll.h"
 #include "iothub_module_client_ll.h"
+#include "iothub_transport_ll.h"
 #include "iothub_twin.h"
 
 #ifndef IOTHUB_MODULE_CLIENT_INSTANCE_TYPE
