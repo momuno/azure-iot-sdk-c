@@ -58,7 +58,7 @@
 #endif
 
 // Connection String -- Paste in the iothub device connection string.
-static const char* connection_string = "[device connections string]";
+static const char* connection_string = "[device connection string]";
 
 static IOTHUB_DEVICE_CLIENT_HANDLE iothub_client;
 static IOTHUB_TWIN_REQUEST_OPTIONS_HANDLE twin_request_options;

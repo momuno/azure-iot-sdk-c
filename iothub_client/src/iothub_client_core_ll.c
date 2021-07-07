@@ -93,7 +93,7 @@ typedef struct IOTHUB_MESSAGE_CALLBACK_DATA_TAG
 
 typedef struct GET_TWIN_CONTEXT_TAG
 {
-    union USER_CALLBACK_TAG
+    union
     {
         IOTHUB_CLIENT_DEVICE_TWIN_CALLBACK getTwin;
         IOTHUB_CLIENT_DEVICE_TWIN_SECTION_CALLBACK getTwinSection;
