@@ -166,14 +166,9 @@ extern "C"
     typedef void(*IOTHUB_CLIENT_DEVICE_TWIN_SECTION_CALLBACK)(DEVICE_TWIN_UPDATE_STATE updateState, IOTHUB_TWIN_RESPONSE_HANDLE twinResponse, const unsigned char* payload, size_t size, void* userContextCallback);
     typedef void(*IOTHUB_CLIENT_REPORTED_STATE_CALLBACK)(int status_code, void* userContextCallback);
     typedef int(*IOTHUB_CLIENT_DEVICE_METHOD_CALLBACK_ASYNC)(const char* methodName, const unsigned char* payload, size_t size, unsigned char** response, size_t* responseSize, void* userContextCallback);
-    typedef int(*IOTHUB_CLIENT_INBOUND_DEVICE_METHOD_CALLBACK)(const char* methodName, const unsigned char* payload, size_t size, METHOD_HANDLE MethodId, void* userContextCallback);
+    typedef int(*IOTHUB_CLIENT_INBOUND_DEVICE_METHOD_CALLBACK)(const char* methodName, const unsigned char* payload, size_t size, METHOD_HANDLE methodId, void* userContextCallback);
 
 
-/*
- *
- * Upload to Blob APIs
- *
- */
 #define IOTHUB_CLIENT_FILE_UPLOAD_GET_DATA_RESULT_VALUES \
     IOTHUB_CLIENT_FILE_UPLOAD_GET_DATA_OK, \
     IOTHUB_CLIENT_FILE_UPLOAD_GET_DATA_ABORT

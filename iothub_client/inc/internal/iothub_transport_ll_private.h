@@ -10,10 +10,13 @@ union IOTHUB_IDENTITY_INFO_TAG;
 typedef union IOTHUB_IDENTITY_INFO_TAG IOTHUB_IDENTITY_INFO;
 
 #include "azure_c_shared_utility/doublylinkedlist.h"
-#include "azure_c_shared_utility/strings.h"
 #include "azure_c_shared_utility/platform.h"
+#include "azure_c_shared_utility/strings.h"
+
 #include "internal/iothub_client_authorization.h"
+
 #include "iothub_message.h"
+#include "iothub_twin.h"
 
 struct MESSAGE_DISPOSITION_CONTEXT_TAG;
 typedef struct MESSAGE_DISPOSITION_CONTEXT_TAG* MESSAGE_DISPOSITION_CONTEXT_HANDLE;
