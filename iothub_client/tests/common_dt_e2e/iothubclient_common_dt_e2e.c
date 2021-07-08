@@ -894,6 +894,9 @@ static void request_twin_desired_reported_sections_and_wait_for_response(IOTHUB_
     // int64_t response_version;
     int64_t parsed_version;
 
+    // Set callback for regular full GET twin call which will always happen at subscription to twin TOPIC.
+    setdevicetwincallback_on_device_or_module(deviceTwinCallback, deviceDesiredData);
+
     //
     // GetTwinDesiredAsync
     //
