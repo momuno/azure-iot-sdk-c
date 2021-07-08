@@ -250,8 +250,8 @@ extern "C"
     * @return    IOTHUB_CLIENT_OK upon success or an error code upon failure.
     */
     MOCKABLE_FUNCTION(, IOTHUB_CLIENT_RESULT, IoTHubModuleClient_GetTwinAsync, IOTHUB_MODULE_CLIENT_HANDLE, iotHubModuleClientHandle, IOTHUB_CLIENT_DEVICE_TWIN_CALLBACK, moduleTwinCallback, void*, userContextCallback);
-    MOCKABLE_FUNCTION(, IOTHUB_CLIENT_RESULT, IoTHubDeviceClient_GetTwinDesiredAsync, IOTHUB_MODULE_CLIENT_HANDLE, iotHubModuleClientHandle, IOTHUB_TWIN_REQUEST_OPTIONS_HANDLE, twinRequestOptions, IOTHUB_CLIENT_DEVICE_TWIN_SECTION_CALLBACK, moduleTwinDesiredCallback, void*, userContextCallback);
-    MOCKABLE_FUNCTION(, IOTHUB_CLIENT_RESULT, IoTHubDeviceClient_GetTwinReportedAsync, IOTHUB_MODULE_CLIENT_HANDLE, iotHubModuleClientHandle, IOTHUB_TWIN_REQUEST_OPTIONS_HANDLE, twinRequestOptions, IOTHUB_CLIENT_DEVICE_TWIN_SECTION_CALLBACK, moduleTwinReportedCallback, void*, userContextCallback);
+    MOCKABLE_FUNCTION(, IOTHUB_CLIENT_RESULT, IoTHubModuleClient_GetTwinDesiredAsync, IOTHUB_MODULE_CLIENT_HANDLE, iotHubModuleClientHandle, IOTHUB_TWIN_REQUEST_OPTIONS_HANDLE, twinRequestOptions, IOTHUB_CLIENT_DEVICE_TWIN_SECTION_CALLBACK, moduleTwinDesiredCallback, void*, userContextCallback);
+    MOCKABLE_FUNCTION(, IOTHUB_CLIENT_RESULT, IoTHubModuleClient_GetTwinReportedAsync, IOTHUB_MODULE_CLIENT_HANDLE, iotHubModuleClientHandle, IOTHUB_TWIN_REQUEST_OPTIONS_HANDLE, twinRequestOptions, IOTHUB_CLIENT_DEVICE_TWIN_SECTION_CALLBACK, moduleTwinReportedCallback, void*, userContextCallback);
 
     /**
     * @brief    This API sets callback for async cloud to module method call.
