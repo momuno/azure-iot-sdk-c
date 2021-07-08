@@ -17,7 +17,8 @@
 #include "iothub_module_client.h"
 #include "iothub_client_options.h"
 #include "iothub_twin.h"
-//#include "iothub_devicetwin.h" ///???? where is this!?
+
+#include "iothub_devicetwin.h"
 
 #include "iothub_account.h"
 #include "iothubtest.h"
@@ -534,7 +535,7 @@ static void deviceTwinSectionCallback(DEVICE_TWIN_UPDATE_STATE update_state, IOT
         device->receivedCallBack = true;
         if (device->twin_response != NULL)
         {
-            IoTHubTwin_DestroyRequestOptions(device->twin_response);
+            IoTHubTwin_DestroyResponse(device->twin_response);
         }
         device->twin_response = twin_response;
         if (device->cb_payload != NULL)
@@ -866,11 +867,11 @@ static void parse_json_get_twin_version(const char* payload, DEVICE_TWIN_MESSAGE
 
     if (message_type == DEVICE_TWIN_GET_DESIRED_REQUEST)
     {
-        version_name = "desired.$version"
+        version_name = "desired.$version";
     }
     else if (message_type == DEVICE_TWIN_GET_REPORTED_REQUEST)
     {
-        version_name = "reported.$version"
+        version_name = "reported.$version";
     }
     else if (message_type == DEVICE_TWIN_GET_FULL_REQUEST)
     {
@@ -878,7 +879,7 @@ static void parse_json_get_twin_version(const char* payload, DEVICE_TWIN_MESSAGE
     }
 
     double version = json_object_dotget_number(root_object, version_name);
-    ASSERT_ARE_NOT_EQUAL(int64_t, 0, version, "Failed to parse $version.")
+    ASSERT_ARE_NOT_EQUAL(int64_t, 0, version, "Failed to parse $version.");
 
     *out_version = version;
 }
@@ -949,8 +950,8 @@ static void request_twin_desired_reported_sections_and_wait_for_response(IOTHUB_
 
     // Test if-not-version for mismatched version.
     // Expected status 200. Expected version > 0. Expected payload size > 0.
-    device_desired_current_version = 0; // 0 is not a valid version value, so will not match the Hub's version.
-    twin_request_options->set_current_version(twin_request_options, &device_desired_current_version);
+    device_current_version = 0; // 0 is not a valid version value, so will not match the Hub's version.
+    twin_request_options->set_current_version(twin_request_options, &device_current_version);
     if (deviceToUse->moduleConnectionString != NULL)
     {
         ASSERT_ARE_EQUAL(IOTHUB_CLIENT_RESULT, IoTHubModuleClient_GetTwinDesiredAsync(iothub_moduleclient_handle, twin_request_options, deviceTwinSectionCallback, deviceDesiredData), IOTHUB_CLIENT_OK);
@@ -1000,8 +1001,8 @@ static void request_twin_desired_reported_sections_and_wait_for_response(IOTHUB_
 
     // Test if-not-version for matched versions.
     // Expected status 304. Expected version > 0. Expected payload size == 0.
-    device_desired_current_version = parsed_version;
-    twin_request_options->set_current_version(twin_request_options, &device_desired_current_version);
+    device_current_version = parsed_version;
+    twin_request_options->set_current_version(twin_request_options, &device_current_version);
     if (deviceToUse->moduleConnectionString != NULL)
     {
         ASSERT_ARE_EQUAL(IOTHUB_CLIENT_RESULT, IoTHubModuleClient_GetTwinDesiredAsync(iothub_moduleclient_handle, twin_request_options, deviceTwinSectionCallback, deviceDesiredData), IOTHUB_CLIENT_OK);
@@ -1064,8 +1065,7 @@ static void request_twin_desired_reported_sections_and_wait_for_response(IOTHUB_
         ASSERT_ARE_EQUAL(IOTHUB_CLIENT_RESULT, IoTHubDeviceClient_GetTwinReportedAsync(iothub_deviceclient_handle, twin_request_options, deviceTwinSectionCallback, deviceDesiredData), IOTHUB_CLIENT_OK);
     }
 
-    bool callbackReceived = false;
-    time_t beginOperation, nowTime;
+    callbackReceived = false;
     beginOperation = time(NULL);
     while (
         (nowTime = time(NULL)),
@@ -1105,8 +1105,8 @@ static void request_twin_desired_reported_sections_and_wait_for_response(IOTHUB_
 
     // Test if-not-version for mismatched version.
     // Expected status 200. Expected version > 0. Expected payload size > 0.
-    device_desired_current_version = 0; // 0 is not a valid version value, so will not match the Hub's version.
-    twin_request_options->set_current_version(twin_request_options, &device_desired_current_version);
+    device_current_version = 0; // 0 is not a valid version value, so will not match the Hub's version.
+    twin_request_options->set_current_version(twin_request_options, &device_current_version);
     if (deviceToUse->moduleConnectionString != NULL)
     {
         ASSERT_ARE_EQUAL(IOTHUB_CLIENT_RESULT, IoTHubModuleClient_GetTwinReportedAsync(iothub_moduleclient_handle, twin_request_options, deviceTwinSectionCallback, deviceDesiredData), IOTHUB_CLIENT_OK);
@@ -1156,8 +1156,8 @@ static void request_twin_desired_reported_sections_and_wait_for_response(IOTHUB_
 
     // Test if-not-version for matched versions.
     // Expected status 304. Expected version > 0. Expected payload size == 0.
-    device_desired_current_version = parsed_version;
-    twin_request_options->set_current_version(twin_request_options, &device_desired_current_version);
+    device_current_version = parsed_version;
+    twin_request_options->set_current_version(twin_request_options, &device_current_version);
     if (deviceToUse->moduleConnectionString != NULL)
     {
         ASSERT_ARE_EQUAL(IOTHUB_CLIENT_RESULT, IoTHubModuleClient_GetTwinReportedAsync(iothub_moduleclient_handle, twin_request_options, deviceTwinSectionCallback, deviceDesiredData), IOTHUB_CLIENT_OK);
