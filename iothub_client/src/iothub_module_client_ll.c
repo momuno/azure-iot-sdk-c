@@ -20,6 +20,7 @@
 #include "internal/iothub_client_private.h"
 #include "iothub_client_options.h"
 #include "iothub_client_version.h"
+#include "iothub_twin.h"
 #include <stdint.h>
 
 #ifndef DONT_USE_UPLOADTOBLOB
@@ -237,6 +238,36 @@ IOTHUB_CLIENT_RESULT IoTHubModuleClient_LL_GetTwinAsync(IOTHUB_MODULE_CLIENT_LL_
     if (iotHubModuleClientHandle != NULL)
     {
         result = IoTHubClientCore_LL_GetTwinAsync(iotHubModuleClientHandle->coreHandle, moduleTwinCallback, userContextCallback);
+    }
+    else
+    {
+        LogError("Input parameter cannot be NULL");
+        result = IOTHUB_CLIENT_INVALID_ARG;
+    }
+    return result;
+}
+
+IOTHUB_CLIENT_RESULT IoTHubModuleClient_LL_GetTwinDesiredAsync(IOTHUB_MODULE_CLIENT_LL_HANDLE iotHubModuleClientHandle, IOTHUB_TWIN_REQUEST_OPTIONS_HANDLE twinRequestOptions, IOTHUB_CLIENT_DEVICE_TWIN_SECTION_CALLBACK moduleTwinDesiredCallback, void* userContextCallback)
+{
+    IOTHUB_CLIENT_RESULT result;
+    if (iotHubModuleClientHandle != NULL)
+    {
+        result = IoTHubClientCore_LL_GetTwinDesiredAsync(iotHubModuleClientHandle->coreHandle, twinRequestOptions, moduleTwinDesiredCallback, userContextCallback);
+    }
+    else
+    {
+        LogError("Input parameter cannot be NULL");
+        result = IOTHUB_CLIENT_INVALID_ARG;
+    }
+    return result;
+}
+
+IOTHUB_CLIENT_RESULT IoTHubModuleClient_LL_GetTwinReportedAsync(IOTHUB_MODULE_CLIENT_LL_HANDLE iotHubModuleClientHandle, IOTHUB_TWIN_REQUEST_OPTIONS_HANDLE twinRequestOptions, IOTHUB_CLIENT_DEVICE_TWIN_SECTION_CALLBACK moduleTwinReportedCallback, void* userContextCallback)
+{
+    IOTHUB_CLIENT_RESULT result;
+    if (iotHubModuleClientHandle != NULL)
+    {
+        result = IoTHubClientCore_LL_GetTwinReportedAsync(iotHubModuleClientHandle->coreHandle, twinRequestOptions, moduleTwinReportedCallback, userContextCallback);
     }
     else
     {

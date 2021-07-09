@@ -1,30 +1,32 @@
 // Copyright (c) Microsoft. All rights reserved.
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 
+#include <stdint.h>
 #include <stdlib.h>
 #include <string.h>
-#include "azure_c_shared_utility/optimize_size.h"
-#include "azure_c_shared_utility/gballoc.h"
-#include "azure_c_shared_utility/string_tokenizer.h"
-#include "azure_c_shared_utility/doublylinkedlist.h"
-#include "azure_c_shared_utility/xlogging.h"
-#include "azure_c_shared_utility/tickcounter.h"
+
 #include "azure_c_shared_utility/constbuffer.h"
+#include "azure_c_shared_utility/doublylinkedlist.h"
+#include "azure_c_shared_utility/gballoc.h"
+#include "azure_c_shared_utility/optimize_size.h"
 #include "azure_c_shared_utility/platform.h"
+#include "azure_c_shared_utility/string_tokenizer.h"
+#include "azure_c_shared_utility/tickcounter.h"
+#include "azure_c_shared_utility/xlogging.h"
 
-#include "iothub_client_core_ll.h"
 #include "internal/iothub_client_authorization.h"
-#include "iothub_device_client_ll.h"
-#include "iothub_transport_ll.h"
-#include "internal/iothub_client_private.h"
-#include "iothub_client_options.h"
-#include "iothub_client_version.h"
 #include "internal/iothub_client_diagnostic.h"
-#include <stdint.h>
-
+#include "internal/iothub_client_private.h"
 #ifndef DONT_USE_UPLOADTOBLOB
 #include "internal/iothub_client_ll_uploadtoblob.h"
 #endif
+
+#include "iothub_client_core_ll.h"
+#include "iothub_client_options.h"
+#include "iothub_client_version.h"
+#include "iothub_device_client_ll.h"
+#include "iothub_transport_ll.h"
+#include "iothub_twin.h"
 
 IOTHUB_DEVICE_CLIENT_LL_HANDLE IoTHubDeviceClient_LL_CreateFromConnectionString(const char* connectionString, IOTHUB_CLIENT_TRANSPORT_PROVIDER protocol)
 {
@@ -104,6 +106,16 @@ IOTHUB_CLIENT_RESULT IoTHubDeviceClient_LL_SetDeviceTwinCallback(IOTHUB_DEVICE_C
 IOTHUB_CLIENT_RESULT IoTHubDeviceClient_LL_GetTwinAsync(IOTHUB_DEVICE_CLIENT_LL_HANDLE iotHubClientHandle, IOTHUB_CLIENT_DEVICE_TWIN_CALLBACK deviceTwinCallback, void* userContextCallback)
 {
     return IoTHubClientCore_LL_GetTwinAsync((IOTHUB_CLIENT_CORE_LL_HANDLE)iotHubClientHandle, deviceTwinCallback, userContextCallback);
+}
+
+IOTHUB_CLIENT_RESULT IoTHubDeviceClient_LL_GetTwinDesiredAsync(IOTHUB_DEVICE_CLIENT_LL_HANDLE iotHubClientHandle, IOTHUB_TWIN_REQUEST_OPTIONS_HANDLE twinRequestOptions, IOTHUB_CLIENT_DEVICE_TWIN_SECTION_CALLBACK deviceTwinDesiredCallback,  void* userContextCallback)
+{
+    return IoTHubClientCore_LL_GetTwinDesiredAsync((IOTHUB_DEVICE_CLIENT_LL_HANDLE)iotHubClientHandle, twinRequestOptions, deviceTwinDesiredCallback, userContextCallback);
+}
+
+IOTHUB_CLIENT_RESULT IoTHubDeviceClient_LL_GetTwinReportedAsync(IOTHUB_DEVICE_CLIENT_LL_HANDLE iotHubClientHandle, IOTHUB_TWIN_REQUEST_OPTIONS_HANDLE twinRequestOptions, IOTHUB_CLIENT_DEVICE_TWIN_SECTION_CALLBACK deviceTwinReportedCallback, void* userContextCallback)
+{
+    return IoTHubClientCore_LL_GetTwinReportedAsync((IOTHUB_DEVICE_CLIENT_LL_HANDLE)iotHubClientHandle, twinRequestOptions, deviceTwinReportedCallback, userContextCallback);
 }
 
 IOTHUB_CLIENT_RESULT IoTHubDeviceClient_LL_SendReportedState(IOTHUB_DEVICE_CLIENT_LL_HANDLE iotHubClientHandle, const unsigned char* reportedState, size_t size, IOTHUB_CLIENT_REPORTED_STATE_CALLBACK reportedStateCallback, void* userContextCallback)

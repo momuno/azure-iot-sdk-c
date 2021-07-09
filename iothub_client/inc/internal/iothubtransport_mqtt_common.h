@@ -7,6 +7,8 @@
 #include "internal/iothub_transport_ll_private.h"
 #include "umock_c/umock_c_prod.h"
 
+#include "iothub_twin.h"
+
 #ifdef __cplusplus
 extern "C"
 {
@@ -31,6 +33,8 @@ MOCKABLE_FUNCTION(, int, IoTHubTransport_MQTT_Common_Subscribe, TRANSPORT_LL_HAN
 MOCKABLE_FUNCTION(, void, IoTHubTransport_MQTT_Common_Unsubscribe, TRANSPORT_LL_HANDLE, handle);
 MOCKABLE_FUNCTION(, int, IoTHubTransport_MQTT_Common_Subscribe_DeviceTwin, TRANSPORT_LL_HANDLE, handle);
 MOCKABLE_FUNCTION(, IOTHUB_CLIENT_RESULT, IoTHubTransport_MQTT_Common_GetTwinAsync, IOTHUB_DEVICE_HANDLE, handle, IOTHUB_CLIENT_DEVICE_TWIN_CALLBACK, completionCallback, void*, callbackContext);
+MOCKABLE_FUNCTION(, IOTHUB_CLIENT_RESULT, IoTHubTransport_MQTT_Common_GetTwinDesiredAsync, IOTHUB_DEVICE_HANDLE, handle, IOTHUB_TWIN_REQUEST_OPTIONS_HANDLE, twinRequestOptions, IOTHUB_CLIENT_DEVICE_TWIN_SECTION_CALLBACK, deviceTwinDesiredCompletionCallback, void*, callbackContext);
+MOCKABLE_FUNCTION(, IOTHUB_CLIENT_RESULT, IoTHubTransport_MQTT_Common_GetTwinReportedAsync, IOTHUB_DEVICE_HANDLE, handle, IOTHUB_TWIN_REQUEST_OPTIONS_HANDLE, twinRequestOptions, IOTHUB_CLIENT_DEVICE_TWIN_SECTION_CALLBACK, deviceTwinReportedCompletionCallback, void*, callbackContext);
 MOCKABLE_FUNCTION(, void, IoTHubTransport_MQTT_Common_Unsubscribe_DeviceTwin, TRANSPORT_LL_HANDLE, handle);
 MOCKABLE_FUNCTION(, int, IoTHubTransport_MQTT_Common_Subscribe_DeviceMethod, TRANSPORT_LL_HANDLE, handle);
 MOCKABLE_FUNCTION(, void, IoTHubTransport_MQTT_Common_Unsubscribe_DeviceMethod, TRANSPORT_LL_HANDLE, handle);

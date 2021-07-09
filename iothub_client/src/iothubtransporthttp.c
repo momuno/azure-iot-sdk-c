@@ -26,6 +26,7 @@
 #include "azure_c_shared_utility/vector.h"
 #include "azure_c_shared_utility/httpheaders.h"
 #include "azure_c_shared_utility/agenttime.h"
+#include "iothub_twin.h"
 
 #define IOTHUB_APP_PREFIX "iothub-app-"
 static const char* IOTHUB_MESSAGE_ID = "iothub-messageid";
@@ -1214,6 +1215,28 @@ static IOTHUB_CLIENT_RESULT IoTHubTransportHttp_GetTwinAsync(IOTHUB_DEVICE_HANDL
     (void)callbackContext;
     LogError("Currently Not Supported.");
     // Codes_SRS_TRANSPORTMULTITHTTP_09_005: [ `IoTHubTransportHttp_GetTwinAsync` shall return IOTHUB_CLIENT_ERROR]
+    return IOTHUB_CLIENT_ERROR;
+}
+
+static IOTHUB_CLIENT_RESULT IoTHubTransportHttp_GetTwinDesiredAsync(IOTHUB_DEVICE_HANDLE handle, IOTHUB_TWIN_REQUEST_OPTIONS_HANDLE twinRequestOptions, IOTHUB_CLIENT_DEVICE_TWIN_SECTION_CALLBACK completionCallback, void* callbackContext)
+{
+    (void)handle;
+    (void)twinRequestOptions;
+    (void)completionCallback;
+    (void)callbackContext;
+    LogError("Currently Not Supported.");
+    // Codes_SRS_TRANSPORTMULTITHTTP_09_005: [ `IoTHubTransportHttp_GetTwinDesiredAsync` shall return IOTHUB_CLIENT_ERROR]
+    return IOTHUB_CLIENT_ERROR;
+}
+
+static IOTHUB_CLIENT_RESULT IoTHubTransportHttp_GetTwinReportedAsync(IOTHUB_DEVICE_HANDLE handle, IOTHUB_TWIN_REQUEST_OPTIONS_HANDLE twinRequestOptions, IOTHUB_CLIENT_DEVICE_TWIN_SECTION_CALLBACK completionCallback, void* callbackContext)
+{
+    (void)handle;
+    (void)twinRequestOptions;
+    (void)completionCallback;
+    (void)callbackContext;
+    LogError("Currently Not Supported.");
+    // Codes_SRS_TRANSPORTMULTITHTTP_09_005: [ `IoTHubTransportHttp_GetTwinReportedAsync` shall return IOTHUB_CLIENT_ERROR]
     return IOTHUB_CLIENT_ERROR;
 }
 
@@ -2570,6 +2593,8 @@ static TRANSPORT_PROVIDER thisTransportProvider =
     IotHubTransportHttp_Unsubscribe_InputQueue,     /*pfIoTHubTransport_Unsubscribe_InputQueue IoTHubTransport_Unsubscribe_InputQueue; */
     IoTHubTransportHttp_SetCallbackContext,         /*pfIoTHubTransport_SetTransportCallbacks IoTHubTransport_SetTransportCallbacks; */
     IoTHubTransportHttp_GetTwinAsync,               /*pfIoTHubTransport_GetTwinAsync IoTHubTransport_GetTwinAsync;*/
+    IoTHubTransportHttp_GetTwinDesiredAsync,        /*pfIoTHubTransport_GetTwinDesiredAsync IoTHubTransport_GetTwinDesiredAsync;*/
+    IoTHubTransportHttp_GetTwinReportedAsync,        /*pfIoTHubTransport_GetTwinReportedAsync IoTHubTransport_GetTwinReportedAsync;*/
     IoTHubTransportHttp_GetSupportedPlatformInfo      /*pfIoTHubTransport_GetSupportedPlatformInfo IoTHubTransport_GetSupportedPlatformInfo;*/
 };
 
