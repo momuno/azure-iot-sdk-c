@@ -521,7 +521,7 @@ static void deviceTwinSectionCallback(DEVICE_TWIN_UPDATE_STATE update_state, IOT
     }
 */
 
-    LogInfo("Callback:: Receive twin_response status=<%lu>, version=?; Received payload len=<%lu>, data=<%.*s>\n",
+    LogInfo("Callback:: Received twin_response status=<%lu>, version=?; Received payload len=<%lu>, data=<%.*s>\n",
             response_status, (unsigned long)size, (int)size, payload);
 
     DEVICE_DESIRED_DATA *device = (DEVICE_DESIRED_DATA *)userContextCallback;
@@ -888,11 +888,8 @@ static void parse_json_get_twin_version(const char* payload, DEVICE_TWIN_MESSAGE
     *out_version = version;
 }
 
-static void request_twin_desired_reported_sections_and_wait_for_response(IOTHUB_PROVISIONED_DEVICE* deviceToUse, DEVICE_DESIRED_DATA *deviceDesiredData)
+static void request_twin_desired_reported_sections_and_wait_for_response(IOTHUB_PROVISIONED_DEVICE* deviceToUse)
 {
-    IOTHUB_TWIN_REQUEST_OPTIONS_HANDLE twin_request_options = IoTHubTwin_CreateRequestOptions();
-    ASSERT_IS_NOT_NULL(twin_request_options, "Could not invoke IoTHubTwin_CreateRequestOptions");
-
     int64_t response_status;
     int64_t device_current_version;
     // int64_t response_version;
@@ -900,6 +897,12 @@ static void request_twin_desired_reported_sections_and_wait_for_response(IOTHUB_
 
     bool callbackReceived;
     time_t beginOperation, nowTime;
+
+    IOTHUB_TWIN_REQUEST_OPTIONS_HANDLE twin_request_options = IoTHubTwin_CreateRequestOptions();
+    ASSERT_IS_NOT_NULL(twin_request_options, "Could not invoke IoTHubTwin_CreateRequestOptions");
+
+    DEVICE_DESIRED_DATA* deviceDesiredData = device_desired_data_init();
+    ASSERT_IS_NOT_NULL(deviceDesiredData, "failed to create the device client data");
 
     //
     // GetTwinDesiredAsync
@@ -918,10 +921,7 @@ static void request_twin_desired_reported_sections_and_wait_for_response(IOTHUB_
 
     callbackReceived = false;
     beginOperation = time(NULL);
-    while (
-        (nowTime = time(NULL)),
-        (difftime(nowTime, beginOperation) < MAX_CLOUD_TRAVEL_TIME) // time box
-        )
+    while ((nowTime = time(NULL)), (difftime(nowTime, beginOperation) < MAX_CLOUD_TRAVEL_TIME))
     {
         if (Lock(deviceDesiredData->lock) != LOCK_OK)
         {
@@ -975,10 +975,7 @@ static void request_twin_desired_reported_sections_and_wait_for_response(IOTHUB_
 
     callbackReceived = false;
     beginOperation = time(NULL);
-    while (
-        (nowTime = time(NULL)),
-        (difftime(nowTime, beginOperation) < MAX_CLOUD_TRAVEL_TIME) // time box
-        )
+    while ((nowTime = time(NULL)), (difftime(nowTime, beginOperation) < MAX_CLOUD_TRAVEL_TIME))
     {
         if (Lock(deviceDesiredData->lock) != LOCK_OK)
         {
@@ -1030,10 +1027,7 @@ static void request_twin_desired_reported_sections_and_wait_for_response(IOTHUB_
 
     callbackReceived = false;
     beginOperation = time(NULL);
-    while (
-        (nowTime = time(NULL)),
-        (difftime(nowTime, beginOperation) < MAX_CLOUD_TRAVEL_TIME) // time box
-        )
+    while ((nowTime = time(NULL)), (difftime(nowTime, beginOperation) < MAX_CLOUD_TRAVEL_TIME))
     {
         if (Lock(deviceDesiredData->lock) != LOCK_OK)
         {
@@ -1066,8 +1060,6 @@ static void request_twin_desired_reported_sections_and_wait_for_response(IOTHUB_
     deviceDesiredData = device_desired_data_init();
     ASSERT_IS_NOT_NULL(deviceDesiredData, "failed to create the device client data");
 
-    // Reset request-options
-    twin_request_options->set_current_version(twin_request_options, NULL);
 
     //
     // GetTwinReportedAsync
@@ -1075,6 +1067,7 @@ static void request_twin_desired_reported_sections_and_wait_for_response(IOTHUB_
 
     // Test basic call without if-not-version property in topic.
     // Expected status 200. Expected version > 0. Expected payload size > 0.
+    twin_request_options->set_current_version(twin_request_options, NULL); // Reset request-options
     if (deviceToUse->moduleConnectionString != NULL)
     {
         ASSERT_ARE_EQUAL(IOTHUB_CLIENT_RESULT, IoTHubModuleClient_GetTwinReportedAsync(iothub_moduleclient_handle, twin_request_options, deviceTwinSectionCallback, deviceDesiredData), IOTHUB_CLIENT_OK);
@@ -1086,10 +1079,7 @@ static void request_twin_desired_reported_sections_and_wait_for_response(IOTHUB_
 
     callbackReceived = false;
     beginOperation = time(NULL);
-    while (
-        (nowTime = time(NULL)),
-        (difftime(nowTime, beginOperation) < MAX_CLOUD_TRAVEL_TIME) // time box
-        )
+    while ((nowTime = time(NULL)), (difftime(nowTime, beginOperation) < MAX_CLOUD_TRAVEL_TIME))
     {
         if (Lock(deviceDesiredData->lock) != LOCK_OK)
         {
@@ -1141,10 +1131,7 @@ static void request_twin_desired_reported_sections_and_wait_for_response(IOTHUB_
 
     callbackReceived = false;
     beginOperation = time(NULL);
-    while (
-        (nowTime = time(NULL)),
-        (difftime(nowTime, beginOperation) < MAX_CLOUD_TRAVEL_TIME) // time box
-        )
+    while ((nowTime = time(NULL)), (difftime(nowTime, beginOperation) < MAX_CLOUD_TRAVEL_TIME))
     {
         if (Lock(deviceDesiredData->lock) != LOCK_OK)
         {
@@ -1196,10 +1183,7 @@ static void request_twin_desired_reported_sections_and_wait_for_response(IOTHUB_
 
     callbackReceived = false;
     beginOperation = time(NULL);
-    while (
-        (nowTime = time(NULL)),
-        (difftime(nowTime, beginOperation) < MAX_CLOUD_TRAVEL_TIME) // time box
-        )
+    while ((nowTime = time(NULL)), (difftime(nowTime, beginOperation) < MAX_CLOUD_TRAVEL_TIME))
     {
         if (Lock(deviceDesiredData->lock) != LOCK_OK)
         {
@@ -1228,6 +1212,7 @@ static void request_twin_desired_reported_sections_and_wait_for_response(IOTHUB_
     ASSERT_IS_TRUE(callbackReceived, "Did not receive the GetTwinAsync call back");
 
     // Cleanup
+    device_desired_deinit(deviceDesiredData);
     IoTHubTwin_DestroyRequestOptions(twin_request_options);
 }
 
@@ -1253,16 +1238,12 @@ void dt_e2e_get_twin_desired_reported_sections_async_test(IOTHUB_CLIENT_TRANSPOR
     // arrange
     IOTHUB_PROVISIONED_DEVICE* deviceToUse = IoTHubAccount_GetDevice(g_iothubAcctInfo, accountAuthMethod);
 
-    DEVICE_DESIRED_DATA *deviceDesiredData = device_desired_data_init();
-    ASSERT_IS_NOT_NULL(deviceDesiredData, "failed to create the device client data");
-
     dt_e2e_create_client_handle(deviceToUse, protocol);
 
-    request_twin_desired_reported_sections_and_wait_for_response(deviceToUse, deviceDesiredData);
+    request_twin_desired_reported_sections_and_wait_for_response(deviceToUse);
 
     // cleanup
     destroy_on_device_or_module();
-    device_desired_deinit(deviceDesiredData);
 }
 
 // dt_e2e_send_module_id_test makes sure that when OPTION_MODEL_ID is specified at creation time, then
