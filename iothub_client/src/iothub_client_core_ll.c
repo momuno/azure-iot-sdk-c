@@ -2504,7 +2504,8 @@ IOTHUB_CLIENT_RESULT IoTHubClientCore_LL_SendReportedState(IOTHUB_CLIENT_CORE_LL
 }
 
 static IOTHUB_CLIENT_RESULT getTwinAsync(IOTHUB_CLIENT_CORE_LL_HANDLE iotHubClientHandle, IOTHUB_TWIN_REQUEST_OPTIONS_HANDLE twinRequestOptions,
-                                         void* twinCallback, void* userContext, DEVICE_TWIN_MESSAGE_TYPE twinMessageType)
+                                         IOTHUB_CLIENT_DEVICE_TWIN_CALLBACK twinCallback, IOTHUB_CLIENT_DEVICE_TWIN_SECTION_CALLBACK twinSectionCallback,
+                                         void* userContext, DEVICE_TWIN_MESSAGE_TYPE twinMessageType)
 {
    IOTHUB_CLIENT_RESULT result;
 
@@ -2537,17 +2538,17 @@ static IOTHUB_CLIENT_RESULT getTwinAsync(IOTHUB_CLIENT_CORE_LL_HANDLE iotHubClie
                 // Codes_SRS_IOTHUBCLIENT_LL_09_012: [ IoTHubClientCore_LL_GetTwinAsync shall invoke IoTHubTransport_GetTwinAsync, passing `on_device_twin_report_received` and the user data as context  ]
                 if (twinMessageType == DEVICE_TWIN_GET_FULL_REQUEST)
                 {
-                    getTwinCtx->userCallback.getTwin = (IOTHUB_CLIENT_DEVICE_TWIN_CALLBACK)twinCallback;
+                    getTwinCtx->userCallback.getTwin = twinCallback;
                     result = iotHubClientHandle->IoTHubTransport_GetTwinAsync(iotHubClientHandle->deviceHandle, on_get_device_twin_completed, getTwinCtx);
                 }
                 else if (twinMessageType == DEVICE_TWIN_GET_DESIRED_REQUEST)
                 {
-                    getTwinCtx->userCallback.getTwinSection = (IOTHUB_CLIENT_DEVICE_TWIN_SECTION_CALLBACK)twinCallback;
+                    getTwinCtx->userCallback.getTwinSection = twinSectionCallback;
                     result = iotHubClientHandle->IoTHubTransport_GetTwinDesiredAsync(iotHubClientHandle->deviceHandle, twinRequestOptions, on_get_device_twin_section_completed, getTwinCtx);
                 }
                 else if (twinMessageType == DEVICE_TWIN_GET_REPORTED_REQUEST)
                 {
-                    getTwinCtx->userCallback.getTwinSection = (IOTHUB_CLIENT_DEVICE_TWIN_SECTION_CALLBACK)twinCallback;
+                    getTwinCtx->userCallback.getTwinSection = twinSectionCallback;
                     result = iotHubClientHandle->IoTHubTransport_GetTwinReportedAsync(iotHubClientHandle->deviceHandle, twinRequestOptions, on_get_device_twin_section_completed, getTwinCtx);
                 }
                 else
@@ -2587,7 +2588,7 @@ IOTHUB_CLIENT_RESULT IoTHubClientCore_LL_GetTwinAsync(IOTHUB_CLIENT_CORE_LL_HAND
     }
     else
     {
-        result = getTwinAsync(iotHubClientHandle, NULL, deviceTwinCallback, userContextCallback, DEVICE_TWIN_GET_FULL_REQUEST);
+        result = getTwinAsync(iotHubClientHandle, NULL, deviceTwinCallback, NULL, userContextCallback, DEVICE_TWIN_GET_FULL_REQUEST);
     }
 
     return result;
@@ -2605,7 +2606,7 @@ IOTHUB_CLIENT_RESULT IoTHubClientCore_LL_GetTwinDesiredAsync(IOTHUB_CLIENT_CORE_
     }
     else
     {
-        result = getTwinAsync(iotHubClientHandle, twinRequestOptions, deviceTwinDesiredCallback, userContextCallback, DEVICE_TWIN_GET_DESIRED_REQUEST);
+        result = getTwinAsync(iotHubClientHandle, twinRequestOptions, NULL, deviceTwinDesiredCallback, userContextCallback, DEVICE_TWIN_GET_DESIRED_REQUEST);
     }
 
     return result;
@@ -2623,7 +2624,7 @@ IOTHUB_CLIENT_RESULT IoTHubClientCore_LL_GetTwinReportedAsync(IOTHUB_CLIENT_CORE
     }
     else
     {
-        result = getTwinAsync(iotHubClientHandle, twinRequestOptions, deviceTwinReportedCallback, userContextCallback, DEVICE_TWIN_GET_REPORTED_REQUEST);
+        result = getTwinAsync(iotHubClientHandle, twinRequestOptions, NULL, deviceTwinReportedCallback, userContextCallback, DEVICE_TWIN_GET_REPORTED_REQUEST);
     }
 
     return result;

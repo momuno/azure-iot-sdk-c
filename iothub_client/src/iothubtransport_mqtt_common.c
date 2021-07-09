@@ -1110,36 +1110,52 @@ static int publishDeviceTwinGetMsg(MQTTTRANSPORT_HANDLE_DATA* transport_data, MQ
     {
         msg_topic = STRING_construct_sprintf(GET_PROPERTIES_TOPIC, mqtt_info->packet_id);
     }
-    else
+    else if(mqtt_info->device_twin_msg_type == DEVICE_TWIN_GET_DESIRED_REQUEST)
     {
-        if (mqtt_info->device_twin_msg_type == DEVICE_TWIN_GET_DESIRED_REQUEST)
-        {
-            msg_topic = STRING_construct_sprintf(GET_DESIRED_PROPERTIES_TOPIC, mqtt_info->packet_id);
-        }
-        else // IOTHUB_TWIN_GET_REPORTED_REQUEST
-        {
-            msg_topic = STRING_construct_sprintf(GET_REPORTED_PROPERTIES_TOPIC, mqtt_info->packet_id);
-        }
-
-        int64_t device_current_twin_version;
-        IOTHUB_TWIN_REQUEST_OPTIONS_HANDLE twin_request_options = mqtt_info->twinRequestOptions;
-        if (twin_request_options->get_current_version(twin_request_options, &device_current_twin_version))
-        {
-            //Append if-not-version property
-            if (STRING_sprintf(msg_topic, "%s%s=%"PRIi64, PROPERTY_SEPARATOR, IF_NOT_VERSION_PROPERTY, device_current_twin_version) != 0)
-            {
-                LogError("Failed constructing get Prop topic.");
-                result = MU_FAILURE;
-            }
-        }
+        msg_topic = STRING_construct_sprintf(GET_DESIRED_PROPERTIES_TOPIC, mqtt_info->packet_id);
+    }
+    else // IOTHUB_TWIN_GET_REPORTED_REQUEST
+    {
+        msg_topic = STRING_construct_sprintf(GET_REPORTED_PROPERTIES_TOPIC, mqtt_info->packet_id);
     }
 
-    if (msg_topic == NULL || result == MU_FAILURE)
+    if (msg_topic == NULL)
     {
         LogError("Failed constructing get Prop topic.");
         result = MU_FAILURE;
     }
     else
+    {
+        //Append if-not-version property
+        if (mqtt_info->twinRequestOptions)
+        {
+            IOTHUB_TWIN_REQUEST_OPTIONS_HANDLE twin_request_options = mqtt_info->twinRequestOptions;
+
+            int64_t device_current_twin_version;
+            if (twin_request_options->get_current_version(twin_request_options, &device_current_twin_version))
+            {
+                if (STRING_sprintf(msg_topic, "%s%s=%"PRIi64, PROPERTY_SEPARATOR, IF_NOT_VERSION_PROPERTY, device_current_twin_version) != 0)
+                {
+                    LogError("Failed constructing get Prop topic.");
+                    result = MU_FAILURE;
+                }
+                else
+                {
+                    result = 0;
+                }
+            }
+            else
+            {
+                result = 0;
+            }
+        }
+        else
+        {
+            result = 0;
+        }
+    }
+
+    if (result != MU_FAILURE)
     {
         MQTT_MESSAGE_HANDLE mqtt_get_msg = mqttmessage_create(mqtt_info->packet_id, STRING_c_str(msg_topic), DELIVER_AT_MOST_ONCE, NULL, 0);
         if (mqtt_get_msg == NULL)
@@ -1801,14 +1817,14 @@ static int extractMqttProperties(PMQTTTRANSPORT_HANDLE_DATA transportData, IOTHU
 //
 // processTwinNotification processes device and module twin updates made by IoT Hub / IoT Edge.
 //
-static void processTwinNotification(PMQTTTRANSPORT_HANDLE_DATA transportData, MQTT_MESSAGE_HANDLE msgHandle, const char* topicName)
+static void processTwinNotification(PMQTTTRANSPORT_HANDLE_DATA transportData, MQTT_MESSAGE_HANDLE msgHandle, const char* resp_topic)
 {
     size_t request_id;
     int status_code;
     int64_t twin_version;
     bool notification_msg;
 
-    if (parseDeviceTwinTopicInfo(topic_resp, &notification_msg, &request_id, &status_code, &twin_version) != 0)
+    if (parseDeviceTwinTopicInfo(resp_topic, &notification_msg, &request_id, &status_code, &twin_version) != 0)
     {
         LogError("Failure: parsing device topic info");
     }
@@ -1865,7 +1881,7 @@ static void processTwinNotification(PMQTTTRANSPORT_HANDLE_DATA transportData, MQ
                             IOTHUB_TWIN_RESPONSE_HANDLE twin_response = IoTHubTwin_CreateResponse();
                             int64_t int64_status_code = (int64_t)status_code;
                             twin_response->set_status(twin_response, &int64_status_code);
-                            twin_response->set_version(twin_response, &twin_version);
+                            //twin_response->set_version(twin_response, &twin_version);
 
                             // This is a on-demand get twin request.
                             msg_entry->userCallback.getTwinSection(DEVICE_TWIN_UPDATE_PARTIAL, twin_response, payload->message, payload->length, msg_entry->userContext);
@@ -3447,7 +3463,8 @@ void IoTHubTransport_MQTT_Common_Unsubscribe_DeviceTwin(TRANSPORT_LL_HANDLE hand
 }
 
 static IOTHUB_CLIENT_RESULT getTwinAsync(PMQTTTRANSPORT_HANDLE_DATA transportHandle, IOTHUB_TWIN_REQUEST_OPTIONS_HANDLE twinRequestOptions,
-                                         void* twinCallback, void* userCallbackContext, DEVICE_TWIN_MESSAGE_TYPE twinMessageType)
+                                         IOTHUB_CLIENT_DEVICE_TWIN_CALLBACK twinCallback, IOTHUB_CLIENT_DEVICE_TWIN_SECTION_CALLBACK twinSectionCallback,
+                                         void* userCallbackContext, DEVICE_TWIN_MESSAGE_TYPE twinMessageType)
 {
     IOTHUB_CLIENT_RESULT result;
 
@@ -3479,11 +3496,11 @@ static IOTHUB_CLIENT_RESULT getTwinAsync(PMQTTTRANSPORT_HANDLE_DATA transportHan
             mqttInfo->twinRequestOptions = twinRequestOptions;
             if (twinMessageType == DEVICE_TWIN_GET_FULL_REQUEST)
             {
-                mqttInfo->userCallback.getTwin = (IOTHUB_CLIENT_DEVICE_TWIN_CALLBACK)twinCallback;
+                mqttInfo->userCallback.getTwin = twinCallback;
             }
             else if ((twinMessageType == DEVICE_TWIN_GET_DESIRED_REQUEST) || (twinMessageType == DEVICE_TWIN_GET_REPORTED_REQUEST))
             {
-                mqttInfo->userCallback.getTwinSection = (IOTHUB_CLIENT_DEVICE_TWIN_SECTION_CALLBACK)twinCallback;
+                mqttInfo->userCallback.getTwinSection = twinSectionCallback;
             }
 
             mqttInfo->userContext = userCallbackContext;
@@ -3512,7 +3529,7 @@ IOTHUB_CLIENT_RESULT IoTHubTransport_MQTT_Common_GetTwinAsync(IOTHUB_DEVICE_HAND
     else
     {
         PMQTTTRANSPORT_HANDLE_DATA transportHandle = (PMQTTTRANSPORT_HANDLE_DATA)handle;
-        result = getTwinAsync(transportHandle, NULL, completionCallback, userCallbackContext, DEVICE_TWIN_GET_FULL_REQUEST);
+        result = getTwinAsync(transportHandle, NULL, completionCallback, NULL, userCallbackContext, DEVICE_TWIN_GET_FULL_REQUEST);
     }
 
     return result;
@@ -3531,7 +3548,7 @@ IOTHUB_CLIENT_RESULT IoTHubTransport_MQTT_Common_GetTwinDesiredAsync(IOTHUB_DEVI
     else
     {
         PMQTTTRANSPORT_HANDLE_DATA transportHandle = (PMQTTTRANSPORT_HANDLE_DATA)handle;
-        result = getTwinAsync(transportHandle, twinRequestOptions, deviceTwinDesiredCompletionCallback, userCallbackContext, DEVICE_TWIN_GET_DESIRED_REQUEST);
+        result = getTwinAsync(transportHandle, twinRequestOptions, NULL, deviceTwinDesiredCompletionCallback, userCallbackContext, DEVICE_TWIN_GET_DESIRED_REQUEST);
     }
 
     return result;
@@ -3550,7 +3567,7 @@ IOTHUB_CLIENT_RESULT IoTHubTransport_MQTT_Common_GetTwinReportedAsync(IOTHUB_DEV
     else
     {
         PMQTTTRANSPORT_HANDLE_DATA transportHandle = (PMQTTTRANSPORT_HANDLE_DATA)handle;
-        result = getTwinAsync(transportHandle, twinRequestOptions, deviceTwinReportedCompletionCallback, userCallbackContext, DEVICE_TWIN_GET_REPORTED_REQUEST);
+        result = getTwinAsync(transportHandle, twinRequestOptions, NULL, deviceTwinReportedCompletionCallback, userCallbackContext, DEVICE_TWIN_GET_REPORTED_REQUEST);
     }
 
     return result;
