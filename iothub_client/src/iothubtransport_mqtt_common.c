@@ -1871,7 +1871,7 @@ static void processTwinNotification(PMQTTTRANSPORT_HANDLE_DATA transportData, MQ
                             IOTHUB_TWIN_RESPONSE_HANDLE twin_response = IoTHubTwin_CreateResponse();
                             int64_t int64_status_code = (int64_t)status_code;
                             twin_response->set_status(twin_response, &int64_status_code);
-                            twin_response->set_version(twin_response, &twin_version);
+                            //twin_response->set_version(twin_response, &twin_version);
 
                             // This is a on-demand get twin request.
                             msg_entry->userCallback.getTwinSection(DEVICE_TWIN_UPDATE_PARTIAL, twin_response, payload->message, payload->length, msg_entry->userContext);

@@ -728,7 +728,6 @@ static void dispatch_user_callbacks(IOTHUB_CLIENT_CORE_INSTANCE* iotHubClientIns
                             queued_cb->iothub_callback.dev_twin_cb_info.size,
                             queued_cb->iothub_callback.dev_twin_cb_info.userContext
                         );
-                        IoTHubTwin_DestroyResponse(queued_cb->iothub_callback.dev_twin_cb_info.twinResponse);
                     }
                 }
                 // Callback if for Desired properties.

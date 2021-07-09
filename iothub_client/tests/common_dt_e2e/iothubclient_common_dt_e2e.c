@@ -532,7 +532,6 @@ static void deviceTwinSectionCallback(DEVICE_TWIN_UPDATE_STATE update_state, IOT
     else
     {
         device->update_state = update_state;
-        device->receivedCallBack = true;
         if (device->twin_response != NULL)
         {
             IoTHubTwin_DestroyResponse(device->twin_response);
@@ -542,7 +541,11 @@ static void deviceTwinSectionCallback(DEVICE_TWIN_UPDATE_STATE update_state, IOT
         {
             free(device->cb_payload);
         }
-        device->cb_payload = malloc_and_copy_unsigned_char(payload, size);
+        if (size > 0)
+        {
+            device->cb_payload = malloc_and_copy_unsigned_char(payload, size);
+        }
+        device->receivedCallBack = true;
         (void) Unlock(device->lock);
     }
 }
@@ -582,6 +585,7 @@ static void device_desired_deinit(DEVICE_DESIRED_DATA *device)
     }
     else
     {
+        IoTHubTwin_DestroyResponse(device->twin_response);
         free(device->cb_payload);
         Lock_Deinit(device->lock);
         free(device);
@@ -894,8 +898,8 @@ static void request_twin_desired_reported_sections_and_wait_for_response(IOTHUB_
     // int64_t response_version;
     int64_t parsed_version;
 
-    // Set callback for regular full GET twin call which will always happen at subscription to twin TOPIC.
-    setdevicetwincallback_on_device_or_module(deviceTwinCallback, deviceDesiredData);
+    bool callbackReceived;
+    time_t beginOperation, nowTime;
 
     //
     // GetTwinDesiredAsync
@@ -912,8 +916,7 @@ static void request_twin_desired_reported_sections_and_wait_for_response(IOTHUB_
         ASSERT_ARE_EQUAL(IOTHUB_CLIENT_RESULT, IoTHubDeviceClient_GetTwinDesiredAsync(iothub_deviceclient_handle, twin_request_options, deviceTwinSectionCallback, deviceDesiredData), IOTHUB_CLIENT_OK);
     }
 
-    bool callbackReceived = false;
-    time_t beginOperation, nowTime;
+    callbackReceived = false;
     beginOperation = time(NULL);
     while (
         (nowTime = time(NULL)),
@@ -930,7 +933,9 @@ static void request_twin_desired_reported_sections_and_wait_for_response(IOTHUB_
             {
                 ASSERT_ARE_EQUAL(DEVICE_TWIN_UPDATE_STATE, deviceDesiredData->update_state, DEVICE_TWIN_UPDATE_PARTIAL);
                 ASSERT_IS_NOT_NULL(deviceDesiredData->twin_response);
-                ASSERT_IS_TRUE(deviceDesiredData->twin_response->get_status(deviceDesiredData->twin_response, &response_status));
+                bool status_set = deviceDesiredData->twin_response->get_status(deviceDesiredData->twin_response, &response_status);
+
+                ASSERT_IS_TRUE(status_set);
                 ASSERT_ARE_EQUAL(int64_t, 200, response_status);
                 // ASSERT_IS_TRUE(deviceDesiredData->twin_response->get_version(deviceDesiredData->twin_response, &response_version));
                 // ASSERT_IS_TRUE(response_version > 0);
@@ -950,6 +955,10 @@ static void request_twin_desired_reported_sections_and_wait_for_response(IOTHUB_
     }
     ASSERT_IS_TRUE(callbackReceived, "Did not receive the GetTwinAsync call back");
 
+    // Reset context deviceDesiredData
+    device_desired_deinit(deviceDesiredData);
+    deviceDesiredData = device_desired_data_init();
+    ASSERT_IS_NOT_NULL(deviceDesiredData, "failed to create the device client data");
 
     // Test if-not-version for mismatched version.
     // Expected status 200. Expected version > 0. Expected payload size > 0.
@@ -1001,9 +1010,13 @@ static void request_twin_desired_reported_sections_and_wait_for_response(IOTHUB_
     }
     ASSERT_IS_TRUE(callbackReceived, "Did not receive the GetTwinAsync call back");
 
+    // Reset context deviceDesiredData
+    device_desired_deinit(deviceDesiredData);
+    deviceDesiredData = device_desired_data_init();
+    ASSERT_IS_NOT_NULL(deviceDesiredData, "failed to create the device client data");
 
     // Test if-not-version for matched versions.
-    // Expected status 304. Expected version > 0. Expected payload size == 0.
+    // Expected status 304. Expected version > 0. Expected payload is NULL.
     device_current_version = parsed_version;
     twin_request_options->set_current_version(twin_request_options, &device_current_version);
     if (deviceToUse->moduleConnectionString != NULL)
@@ -1036,11 +1049,7 @@ static void request_twin_desired_reported_sections_and_wait_for_response(IOTHUB_
                 ASSERT_ARE_EQUAL(int64_t, 304, response_status);
                 // ASSERT_IS_TRUE(deviceDesiredData->twin_response->get_version(deviceDesiredData->twin_response, &response_version));
                 // ASSERT_IS_TRUE(response_version > 0);
-                ASSERT_IS_NOT_NULL(deviceDesiredData->cb_payload);
-                ASSERT_ARE_EQUAL(size_t, 0, strlen(deviceDesiredData->cb_payload));
-
-                parse_json_get_twin_version(deviceDesiredData->cb_payload, DEVICE_TWIN_GET_DESIRED_REQUEST, &parsed_version);
-                // ASSERT_ARE_EQUAL(int64_t, parsed_version, response_version);
+                ASSERT_IS_NULL(deviceDesiredData->cb_payload);
 
                 callbackReceived = deviceDesiredData->receivedCallBack;
                 Unlock(deviceDesiredData->lock);
@@ -1052,6 +1061,13 @@ static void request_twin_desired_reported_sections_and_wait_for_response(IOTHUB_
     }
     ASSERT_IS_TRUE(callbackReceived, "Did not receive the GetTwinAsync call back");
 
+    // Reset context deviceDesiredData
+    device_desired_deinit(deviceDesiredData);
+    deviceDesiredData = device_desired_data_init();
+    ASSERT_IS_NOT_NULL(deviceDesiredData, "failed to create the device client data");
+
+    // Reset request-options
+    twin_request_options->set_current_version(twin_request_options, NULL);
 
     //
     // GetTwinReportedAsync
@@ -1105,6 +1121,10 @@ static void request_twin_desired_reported_sections_and_wait_for_response(IOTHUB_
     }
     ASSERT_IS_TRUE(callbackReceived, "Did not receive the GetTwinAsync call back");
 
+    // Reset context deviceDesiredData
+    device_desired_deinit(deviceDesiredData);
+    deviceDesiredData = device_desired_data_init();
+    ASSERT_IS_NOT_NULL(deviceDesiredData, "failed to create the device client data");
 
     // Test if-not-version for mismatched version.
     // Expected status 200. Expected version > 0. Expected payload size > 0.
@@ -1156,6 +1176,10 @@ static void request_twin_desired_reported_sections_and_wait_for_response(IOTHUB_
     }
     ASSERT_IS_TRUE(callbackReceived, "Did not receive the GetTwinAsync call back");
 
+    // Reset context deviceDesiredData
+    device_desired_deinit(deviceDesiredData);
+    deviceDesiredData = device_desired_data_init();
+    ASSERT_IS_NOT_NULL(deviceDesiredData, "failed to create the device client data");
 
     // Test if-not-version for matched versions.
     // Expected status 304. Expected version > 0. Expected payload size == 0.
@@ -1191,11 +1215,7 @@ static void request_twin_desired_reported_sections_and_wait_for_response(IOTHUB_
                 ASSERT_ARE_EQUAL(int64_t, 304, response_status);
                 // ASSERT_IS_TRUE(deviceDesiredData->twin_response->get_version(deviceDesiredData->twin_response, &response_version));
                 // ASSERT_IS_TRUE(response_version > 0);
-                ASSERT_IS_NOT_NULL(deviceDesiredData->cb_payload);
-                ASSERT_ARE_EQUAL(size_t, 0, strlen(deviceDesiredData->cb_payload));
-
-                parse_json_get_twin_version(deviceDesiredData->cb_payload, DEVICE_TWIN_GET_REPORTED_REQUEST, &parsed_version);
-                // ASSERT_ARE_EQUAL(int64_t, parsed_version, response_version);
+                ASSERT_IS_NULL(deviceDesiredData->cb_payload);
 
                 callbackReceived = deviceDesiredData->receivedCallBack;
                 Unlock(deviceDesiredData->lock);
@@ -1206,6 +1226,9 @@ static void request_twin_desired_reported_sections_and_wait_for_response(IOTHUB_
         ThreadAPI_Sleep(1000);
     }
     ASSERT_IS_TRUE(callbackReceived, "Did not receive the GetTwinAsync call back");
+
+    // Cleanup
+    IoTHubTwin_DestroyRequestOptions(twin_request_options);
 }
 
 void dt_e2e_get_twin_async_test(IOTHUB_CLIENT_TRANSPORT_PROVIDER protocol, IOTHUB_ACCOUNT_AUTH_METHOD accountAuthMethod)
