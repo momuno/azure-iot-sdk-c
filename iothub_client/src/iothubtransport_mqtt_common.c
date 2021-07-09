@@ -102,14 +102,11 @@ static const char* IF_NOT_VERSION_PROPERTY = "$if-not-version";
 
 static const char* DIAGNOSTIC_CONTEXT_CREATION_TIME_UTC_PROPERTY = "creationtimeutc";
 static const char DT_MODEL_ID_TOKEN[] = "model-id";
-<<<<<<< HEAD
 
 // Content type for twin document. Will be used in IoT Hub defined username.
 static const char* TWIN_CONTENT_TYPE = "default-content-type";
 static const char* TWIN_CONTENT_TYPE_CBOR  = "application%2fcbor";
 
-=======
->>>>>>> master
 static const char DEFAULT_IOTHUB_PRODUCT_IDENTIFIER[] = CLIENT_DEVICE_TYPE_PREFIX "/" IOTHUB_SDK_VERSION;
 
 #define TOLOWER(c) (((c>='A') && (c<='Z'))?c-'A'+'a':c)
