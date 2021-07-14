@@ -128,6 +128,26 @@ TEST_FUNCTION(IoTHub_MQTT_WS_GetTwinSectionAsync_e2e_x509)
 {
     dt_e2e_get_twin_section_async_test(MQTT_WebSocket_Protocol, IOTHUB_ACCOUNT_AUTH_X509);
 }
+
+TEST_FUNCTION(IoTHub_MQTT_WS_GetFullDesired_CBOR_e2e_x509)
+{
+    dt_e2e_get_complete_desired_CBOR_test(MQTT_WebSocket_Protocol, IOTHUB_ACCOUNT_AUTH_X509);
+}
+
+TEST_FUNCTION(IoTHub_MQTT_WS_SendReported_CBOR_e2e_x509)
+{
+    dt_e2e_send_reported_CBOR_test(MQTT_WebSocket_Protocol, IOTHUB_ACCOUNT_AUTH_X509);
+}
+
+TEST_FUNCTION(IoTHub_MQTT_WS_GetTwinAsync_CBOR_e2e_x509)
+{
+    dt_e2e_get_twin_async_CBOR_test(MQTT_WebSocket_Protocol, IOTHUB_ACCOUNT_AUTH_X509);
+}
+
+TEST_FUNCTION(IoTHub_MQTT_WS_GetTwinSectionAsync_CBOR_e2e_x509)
+{
+    dt_e2e_get_twin_section_async_CBOR_test(MQTT_WebSocket_Protocol, IOTHUB_ACCOUNT_AUTH_X509);
+}
 #endif
 #endif
 
