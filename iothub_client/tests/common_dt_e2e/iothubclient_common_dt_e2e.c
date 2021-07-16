@@ -22,7 +22,6 @@
 #include "iothub_device_client.h"
 #include "iothub_devicetwin.h"
 #include "iothub_module_client.h"
-#include "iothub_twin.h"
 #include "iothubtest.h"
 #include "parson.h"
 #include "testrunnerswitcher.h"
@@ -116,7 +115,6 @@ typedef struct DEVICE_DESIRED_DATA_TAG
 {
     bool received_callback;                     // true when device callback has been called
     DEVICE_TWIN_UPDATE_STATE update_state;      // status reported by the callback
-    IOTHUB_TWIN_RESPONSE_HANDLE twin_response;
     char* cb_payload;
     size_t cb_payload_size;
     LOCK_HANDLE lock;
@@ -142,7 +140,6 @@ static DEVICE_DESIRED_DATA* _device_desired_data_init()
         else
         {
             return_value->received_callback = false;
-            return_value->twin_response = NULL;
             return_value->cb_payload = NULL;
             return_value->cb_payload_size = 0;
         }
@@ -162,7 +159,6 @@ static void _device_desired_data_deinit(DEVICE_DESIRED_DATA* device)
     else
     {
         free(device->cb_payload);
-        IoTHubTwin_DestroyResponse(device->twin_response);
         Lock_Deinit(device->lock);
         free(device);
     }
@@ -847,7 +843,7 @@ void dt_e2e_get_complete_desired_test(IOTHUB_CLIENT_TRANSPORT_PROVIDER protocol,
 
     while (now_time = time(NULL), difftime(now_time, begin_operation) < MAX_CLOUD_TRAVEL_TIME)
     {
-        if (Lock(device_desired_data->lock)) != LOCK_OK)
+        if (Lock(device_desired_data->lock) != LOCK_OK)
         {
             ASSERT_FAIL("Lock failed");
         }

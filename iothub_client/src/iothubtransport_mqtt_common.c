@@ -99,14 +99,11 @@ static const char* REQUEST_ID_PROPERTY = "?$rid=";
 
 static const char* DIAGNOSTIC_CONTEXT_CREATION_TIME_UTC_PROPERTY = "creationtimeutc";
 static const char DT_MODEL_ID_TOKEN[] = "model-id";
-<<<<<<< HEAD
 
 // Content type for twin document. Will be used in IoT Hub defined username.
 static const char* TWIN_CONTENT_TYPE = "default-content-type";
 static const char* TWIN_CONTENT_TYPE_CBOR  = "application%2fcbor";
 
-=======
->>>>>>> master
 static const char DEFAULT_IOTHUB_PRODUCT_IDENTIFIER[] = CLIENT_DEVICE_TYPE_PREFIX "/" IOTHUB_SDK_VERSION;
 
 #define TOLOWER(c) (((c>='A') && (c<='Z'))?c-'A'+'a':c)
@@ -172,7 +169,7 @@ static SYSTEM_PROPERTY_INFO sysPropList[] = {
     // even though they don't start with %24, previous versions of SDK parsed and ignored these.  Keep same behavior.
     { "devices/", IOTHUB_SYSTEM_PROPERTY_TYPE_SILENTLY_IGNORE },
     { "iothub-operation", IOTHUB_SYSTEM_PROPERTY_TYPE_SILENTLY_IGNORE },
-    { "iothub-ack" , IOTHUB_SYSTEM_PROPERTY_TYPE_SILENTLY_IGNORE }     
+    { "iothub-ack" , IOTHUB_SYSTEM_PROPERTY_TYPE_SILENTLY_IGNORE }
 };
 
 static const size_t sysPropListLength = sizeof(sysPropList) / sizeof(sysPropList[0]);
@@ -654,7 +651,7 @@ static int retrieveTopicType(PMQTTTRANSPORT_HANDLE_DATA transportData, const cha
     else
     {
         LogError("Topic %s does not match any client is subscribed to", topicName);
-        result = MU_FAILURE;        
+        result = MU_FAILURE;
     }
     return result;
 }
@@ -1372,7 +1369,7 @@ static const char* addInputNamePropertyToMsg(IOTHUB_MESSAGE_HANDLE iotHubMessage
             LogError("Cannot find '/' after input name");
             result = NULL;
         }
-        else 
+        else
         {
             size_t inputNameLength = inputNameEnd - inputNameStart;
             if ((inputNameCopy = malloc(inputNameLength + 1)) == NULL)
@@ -1403,7 +1400,7 @@ static const char* addInputNamePropertyToMsg(IOTHUB_MESSAGE_HANDLE iotHubMessage
 }
 
 //
-// addSystemPropertyToMessageWithDecodeIfNeeded adds a "system" property from the incoming MQTT PUBLISH to the iotHubMessage 
+// addSystemPropertyToMessageWithDecodeIfNeeded adds a "system" property from the incoming MQTT PUBLISH to the iotHubMessage
 // we will ultimately deliver to the application on its callback.
 //
 static int addSystemPropertyToMessage(IOTHUB_MESSAGE_HANDLE iotHubMessage, IOTHUB_SYSTEM_PROPERTY_TYPE propertyType, const char* propValue)
@@ -1586,7 +1583,7 @@ static int addApplicationPropertyToMessage(MAP_HANDLE propertyMap, const char* p
     {
         memcpy(propertyNameCopy, propertyNameAndValue, propertyNameLength);
         propertyNameCopy[propertyNameLength] = '\0';
-    
+
         if (auto_url_encode_decode)
         {
             STRING_HANDLE propName_decoded = URL_DecodeString(propertyNameCopy);
@@ -1620,7 +1617,7 @@ static int addApplicationPropertyToMessage(MAP_HANDLE propertyMap, const char* p
 }
 
 //
-// addSystemPropertyToMessageWithDecodeIfNeeded adds a "system" property from the incoming MQTT PUBLISH to the iotHubMessage 
+// addSystemPropertyToMessageWithDecodeIfNeeded adds a "system" property from the incoming MQTT PUBLISH to the iotHubMessage
 // we will ultimately deliver to the application on its callback.  This function does the urlDecode, if needed, on the property value.
 //
 static int addSystemPropertyToMessageWithDecodeIfNeeded(IOTHUB_MESSAGE_HANDLE iotHubMessage, IOTHUB_SYSTEM_PROPERTY_TYPE propertyType, const char* propertyValue, bool auto_url_encode_decode)
@@ -1659,7 +1656,7 @@ static int addSystemPropertyToMessageWithDecodeIfNeeded(IOTHUB_MESSAGE_HANDLE io
 }
 
 //
-// extractMqttProperties parses the MQTT topic PUBLISH'd to this device/module, retrieves properties and fills out the 
+// extractMqttProperties parses the MQTT topic PUBLISH'd to this device/module, retrieves properties and fills out the
 // IOTHUB_MESSAGE_HANDLE which will ultimately be delivered to the application callback.
 //
 static int extractMqttProperties(PMQTTTRANSPORT_HANDLE_DATA transportData, IOTHUB_MESSAGE_HANDLE iotHubMessage, const char* topic_name, IOTHUB_IDENTITY_TYPE type)
@@ -1685,7 +1682,7 @@ static int extractMqttProperties(PMQTTTRANSPORT_HANDLE_DATA transportData, IOTHU
     {
         // No properties were specified.  This is not an error.  We'll return success to caller but skip further processing.
         result = 0;
-    }    
+    }
     else if ((tokenizer = STRING_TOKENIZER_create_from_char(propertiesStart)) == NULL)
     {
         LogError("failure allocating tokenizer");
@@ -1710,7 +1707,7 @@ static int extractMqttProperties(PMQTTTRANSPORT_HANDLE_DATA transportData, IOTHU
         {
             const char* propertyNameAndValue = STRING_c_str(propertyToken);
             const char* propertyValue;
-                
+
             if (propertyNameAndValue == NULL || (*propertyNameAndValue == 0))
             {
                 ;
@@ -1732,7 +1729,7 @@ static int extractMqttProperties(PMQTTTRANSPORT_HANDLE_DATA transportData, IOTHU
 
                 if (propertyType == IOTHUB_SYSTEM_PROPERTY_TYPE_SILENTLY_IGNORE)
                 {
-                    // To maintain behavior with previous versions of SDKs, "system" properties that we recognize but 
+                    // To maintain behavior with previous versions of SDKs, "system" properties that we recognize but
                     // do not have accessors in IOTHUB_MESSAGE_HANDLE will be silently ignored.  The alternative would be adding
                     // them to the application's custom properties, which isn't right as they're not application defined.
                     ;
