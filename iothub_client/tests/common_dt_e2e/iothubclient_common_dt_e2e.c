@@ -32,7 +32,7 @@
 
 #define MAX_CLOUD_TRAVEL_TIME  120.0    /* 2 minutes */
 #define BUFFER_SIZE            37
-#define CBOR_BUFFER_SIZE       7
+#define CBOR_STRING_BUFFER_SIZE       7
 
 TEST_DEFINE_ENUM_TYPE(IOTHUB_CLIENT_RESULT, IOTHUB_CLIENT_RESULT_VALUES);
 TEST_DEFINE_ENUM_TYPE(DEVICE_TWIN_UPDATE_STATE, DEVICE_TWIN_UPDATE_STATE_VALUES);
@@ -89,7 +89,7 @@ static uint8_t* _generate_unique_CBOR_string(void)
     char* return_value;
     char temp_value[BUFFER_SIZE];
 
-    return_value = (uint8_t*)malloc(CBOR_BUFFER_SIZE);
+    return_value = (uint8_t*)malloc(CBOR_STRING_BUFFER_SIZE);
 
     if (return_value == NULL)
     {
@@ -105,7 +105,7 @@ static uint8_t* _generate_unique_CBOR_string(void)
         }
         else
         {
-            memcpy(return_value, temp_value, CBOR_BUFFER_SIZE);
+            memcpy(return_value, temp_value, CBOR_STRING_BUFFER_SIZE);
         }
     }
     return return_value;
@@ -183,26 +183,38 @@ static char* _malloc_and_fill_service_client_desired_payload(const char* astring
 
 static char* _malloc_and_fill_device_client_expected_desired_payload_CBOR(const char* astring, int aint)
 {
-    ASSERT_ARE_EQUAL(size_t, CBOR_BUFFER_SIZE, strlen(astring));
+    ASSERT_ARE_EQUAL(size_t, CBOR_STRING_BUFFER_SIZE, strlen(astring));
     ASSERT_IS_TRUE(-1 < aint);
     ASSERT_IS_TRUE(aint < 24);
 
     // {"integer_property": <0 to 23>, "string_property":"<7 characters>","array":[<0 to 23>,"<7 characters>"],"$version":<num>}
-    // Starting at 0, Integer @ bytes 18 and 50. String @ bytes 36 - 42, and 52 - 58.
-    uint8_t buffer[] = {0xA4, 0x70, 0x69, 0x6E, 0x74, 0x65, 0x67, 0x65, 0x72, 0x5F, 0x70, 0x72, 0x6F,
-                        0x70, 0x65, 0x72, 0x74, 0x79, 0x00, 0x6F, 0x73, 0x74, 0x72, 0x69, 0x6E, 0x67,
-                        0x5F, 0x70, 0x72, 0x6F, 0x70, 0x65, 0x72, 0x74, 0x79, 0x67, 0x00, 0x00, 0x00,
-                        0x00, 0x00, 0x00, 0x00, 0x65, 0x61, 0x72, 0x72, 0x61, 0x79, 0x82, 0x00, 0x67,
-                        0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x68, 0x24, 0x76, 0x65, 0x72, 0x73,
-                        0x69, 0x6F, 0x6E, 0x00}; // 69 bytes. Last byte unknown version number.
+    uint8_t buffer[] = {
+    /* 0: Map(3) Tag */             0xA4,
+    /* 1: Text(16) Tag */           0x70,
+    /* 2-17: "integer_property" */  0x69, 0x6E, 0x74, 0x65, 0x67, 0x65, 0x72, 0x5F, 0x70, 0x72, 0x6F,
+                                    0x70, 0x65, 0x72, 0x74, 0x79,
+    /* 18: unsigned(0 to 23) Tag w/ value TBD */      0x00,
+    /* 19: Text(15) Tag */          0x6F,
+    /* 20-34: "string_property" */  0x73, 0x74, 0x72, 0x69, 0x6E, 0x67, 0x5F, 0x70, 0x72, 0x6F, 0x70, 0x65, 0x72, 0x74, 0x79,
+    /* 35: Text(7) Tag */           0x67,
+    /* 36-42: 7 characters TBD */   0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+    /* 43: Text(5) Tag */           0x65,
+    /* 44-48: "array" */            0x61, 0x72, 0x72, 0x61, 0x79,
+    /* 49: Array(2) Tag */          0x82,
+    /* 50: unsigned(0 to 23) Tag w/ value TBD */      0x00,
+    /* 51: Text(7) Tag */           0x67,
+    /* 52-58: 7 characters TBD */   0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+    /* 59: Text(8) Tag */           0x68,
+    /* 60-67: "$version" */         0x24, 0x76, 0x65, 0x72, 0x73, 0x69, 0x6F, 0x6E,
+    /* 68: unsigned(0 to 23) Tag w/ value TBD */      0x00}; // Unknown version number.
 
     uint8_t* return_value = (uint8_t*)malloc(sizeof(buffer));
     memcpy(return_value, buffer, sizeof(buffer));
 
     return_value[18] = aint;
     return_value[50] = aint;
-    memcpy(return_value + 36, (uint8_t*)astring, CBOR_BUFFER_SIZE);
-    memcpy(return_value + 52, (uint8_t*)astring, CBOR_BUFFER_SIZE);
+    memcpy(return_value + 36, (uint8_t*)astring, CBOR_STRING_BUFFER_SIZE);
+    memcpy(return_value + 52, (uint8_t*)astring, CBOR_STRING_BUFFER_SIZE);
 
     LogInfo("Filling expected_desired CBOR payload: ");
     for (size_t i = 0; i < 69; ++i)
@@ -342,30 +354,44 @@ static char* _malloc_and_fill_reported_payload(const char* string, int num)
     return return_value;
 }
 
-static uint8_t* _malloc_and_fill_reported_payload_CBOR(const char* astring, int aint)
+static uint8_t* _malloc_and_fill_reported_payload_CBOR(const char* astring, int aint, size_t* buffer_length)
 {
-    ASSERT_ARE_EQUAL(size_t, CBOR_BUFFER_SIZE, strlen(astring));
+    ASSERT_ARE_EQUAL(size_t, CBOR_STRING_BUFFER_SIZE, strlen(astring));
     ASSERT_IS_TRUE(-1 < aint);
     ASSERT_IS_TRUE(aint < 24);
 
     // {"integer_property": <0 to 23>, "string_property": "<7 characters>", "array": [<0 to 23>, "<7 characters>"] }
-    // Starting at 0, Integer @ bytes 18 and 50. String @ bytes 36 - 42, and 52 - 58.
-    uint8_t buffer[] = {0xA3, 0x70, 0x69, 0x6E, 0x74, 0x65, 0x67, 0x65, 0x72, 0x5F, 0x70, 0x72, 0x6F,
-                        0x70, 0x65, 0x72, 0x74, 0x79, 0x00, 0x6F, 0x73, 0x74, 0x72, 0x69, 0x6E, 0x67,
-                        0x5F, 0x70, 0x72, 0x6F, 0x70, 0x65, 0x72, 0x74, 0x79, 0x67, 0x00, 0x00, 0x00,
-                        0x00, 0x00, 0x00, 0x00, 0x65, 0x61, 0x72, 0x72, 0x61, 0x79, 0x82, 0x00, 0x67,
-                        0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}; // 59 bytes
+    uint8_t buffer[] = {
+    /* 0: Map(3) Tag */             0xA3,
+    /* 1: Text(16) Tag */           0x70,
+    /* 2-17: "integer_property" */  0x69, 0x6E, 0x74, 0x65, 0x67, 0x65, 0x72, 0x5F, 0x70, 0x72, 0x6F,
+                                    0x70, 0x65, 0x72, 0x74, 0x79,
+    /* 18: unsigned(0 to 23) Tag w/ value TBD */      0x00,
+    /* 19: Text(15) Tag */          0x6F,
+    /* 20-34: "string_property" */  0x73, 0x74, 0x72, 0x69, 0x6E, 0x67, 0x5F, 0x70, 0x72, 0x6F, 0x70,
+                                    0x65, 0x72, 0x74, 0x79,
+    /* 35: Text(7) Tag */           0x67,
+    /* 36-42: 7 characters TBD */   0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+    /* 43: Text(5) Tag */           0x65,
+    /* 44-48: "array" */            0x61, 0x72, 0x72, 0x61, 0x79,
+    /* 49: Array(2) Tag */          0x82,
+    /* 50: unsigned(0 to 23) Tag w/ value TBD */      0x00,
+    /* 51: Text(7) Tag */           0x67,
+    /* 52-58: 7 characters TBD */   0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00};
+    // 59 bytes total
+
+    *buffer_length = sizeof(buffer)/sizeof(buffer[0]);
 
     uint8_t* return_value = (uint8_t*)malloc(sizeof(buffer));
     memcpy(return_value, buffer, sizeof(buffer));
 
     return_value[18] = aint;
     return_value[50] = aint;
-    memcpy(return_value + 36, (uint8_t*)astring, CBOR_BUFFER_SIZE);
-    memcpy(return_value + 52, (uint8_t*)astring, CBOR_BUFFER_SIZE);
+    memcpy(return_value + 36, (uint8_t*)astring, CBOR_STRING_BUFFER_SIZE);
+    memcpy(return_value + 52, (uint8_t*)astring, CBOR_STRING_BUFFER_SIZE);
 
     LogInfo("Filling reported CBOR payload: ");
-    for (size_t i = 0; i < 59; ++i)
+    for (size_t i = 0; i < *buffer_length; ++i)
     {
         (void)printf("%02X ", return_value[i]);
     }
@@ -390,7 +416,7 @@ static char* _parse_json_twin_char(const char* twin_payload, const char* full_pr
     return return_value;
 }
 
-static int _parse_json_twin_number(const char* twin_payload, const char* full_property_name)
+static int _parse_json_twin_number(const char* twin_payload, const char* full_property_name, bool allow_for_zero)
 {
     JSON_Value* root_value = json_parse_string(twin_payload);
     ASSERT_IS_NOT_NULL(root_value);
@@ -400,7 +426,10 @@ static int _parse_json_twin_number(const char* twin_payload, const char* full_pr
     double double_value = json_object_dotget_number(root_object, full_property_name);
     int int_value = (int)(double_value + 0.1); // Account for possible underflow by small increment and then int typecast.
 
-    ASSERT_ARE_NOT_EQUAL(int, 0, int_value, "Failed to parse %s", full_property_name);
+    if (!allow_for_zero)
+    {
+        ASSERT_ARE_NOT_EQUAL(int, 0, int_value, "Failed to parse %s", full_property_name);
+    }
 
     json_value_free(root_value);
 
@@ -426,7 +455,7 @@ static char* _parse_json_twin_char_from_array(const char* twin_payload, const ch
     return return_value;
 }
 
-static int _parse_json_twin_number_from_array(const char* twin_payload, const char* full_property_name, size_t index)
+static int _parse_json_twin_number_from_array(const char* twin_payload, const char* full_property_name, size_t index, bool allow_for_zero)
 {
     JSON_Value* root_value = json_parse_string(twin_payload);
     ASSERT_IS_NOT_NULL(root_value);
@@ -439,7 +468,10 @@ static int _parse_json_twin_number_from_array(const char* twin_payload, const ch
     double double_value = json_array_get_number(array, index);
     int int_value = (int)(double_value + 0.1); // Account for possible underflow by small increment and then int typecast.
 
-    ASSERT_ARE_NOT_EQUAL(int, 0, int_value, "Failed to parse %s", full_property_name);
+    if (!allow_for_zero)
+    {
+        ASSERT_ARE_NOT_EQUAL(int, 0, int_value, "Failed to parse %s", full_property_name);
+    }
 
     json_value_free(root_value);
 
@@ -607,11 +639,9 @@ static void _reported_state_callback(int status_code, void* user_context_callbac
     }
 }
 
-static void _send_reported_state(const char* buffer, DEVICE_REPORTED_DATA* device_reported_data)
+static void _send_reported_state(const char* buffer, size_t bufferLen, DEVICE_REPORTED_DATA* device_reported_data)
 {
     IOTHUB_CLIENT_RESULT result;
-
-    size_t bufferLen = strlen(buffer);
 
     if (iothub_moduleclient_handle != NULL)
     {
@@ -713,12 +743,13 @@ void dt_e2e_send_reported_test(IOTHUB_CLIENT_TRANSPORT_PROVIDER protocol, IOTHUB
     IOTHUB_PROVISIONED_DEVICE* device_to_use = IoTHubAccount_GetDevice(iothub_accountinfo_handle, account_auth_method);
     _setup_test(device_to_use, protocol);
 
-    DEVICE_REPORTED_DATA* device_reported_data = _device_reported_data_init(false);
+    bool is_cbor = true;
+    DEVICE_REPORTED_DATA* device_reported_data = _device_reported_data_init(!is_cbor);
 
     // Generate and send the reported payload to IoT Hub.
     char* buffer = _malloc_and_fill_reported_payload(device_reported_data->string_property, device_reported_data->integer_property);
     ASSERT_IS_NOT_NULL(buffer, "failed to allocate and prepare the payload for SendReportedState");
-    _send_reported_state(buffer, device_reported_data);
+    _send_reported_state(buffer, strlen(buffer), device_reported_data);
 
     // Receive IoT Hub response.
     int status_code = 400;
@@ -769,7 +800,8 @@ void dt_e2e_send_reported_test(IOTHUB_CLIENT_TRANSPORT_PROVIDER protocol, IOTHUB
         char* string_property = _parse_json_twin_char(twin_data, "properties.reported.string_property");
         ASSERT_ARE_EQUAL(char_ptr, device_reported_data->string_property, string_property, "string data retrieved differs from reported");
 
-        int integer_property = _parse_json_twin_number(twin_data, "properties.reported.integer_property");
+        bool allow_for_zero = true;
+        int integer_property = _parse_json_twin_number(twin_data, "properties.reported.integer_property", allow_for_zero);
         ASSERT_ARE_EQUAL(int, device_reported_data->integer_property, integer_property, "integer data retrieved differs from reported");
 
         (void) Unlock(device_reported_data->lock);
@@ -783,7 +815,7 @@ void dt_e2e_send_reported_test(IOTHUB_CLIENT_TRANSPORT_PROVIDER protocol, IOTHUB
 
     // Cleanup
     free(buffer);
-    _device_reported_data_deinit(device_reported_data, false);
+    _device_reported_data_deinit(device_reported_data, !is_cbor);
     _breakdown_test();
 }
 
@@ -821,7 +853,8 @@ void dt_e2e_get_complete_desired_test(IOTHUB_CLIENT_TRANSPORT_PROVIDER protocol,
     // Get twin initial desired version via service client.
     // Format:: {"properties": {"desired":{"$version":[value]},"reported":{"$version":[value]}}}
     char* twin_data = _service_client_get_twin(serviceclient_devicetwin_handle, device_to_use);
-    int64_t initial_version = (int64_t)_parse_json_twin_number(twin_data, "properties.desired.$version");
+    bool allow_for_zero = true;
+    int64_t initial_version = (int64_t)_parse_json_twin_number(twin_data, "properties.desired.$version", !allow_for_zero);
 
     // Update service client twin to prompt a desired property PATCH message to device.
     char* expected_desired_string = _generate_unique_string();
@@ -854,7 +887,8 @@ void dt_e2e_get_complete_desired_test(IOTHUB_CLIENT_TRANSPORT_PROVIDER protocol,
                 int64_t current_version;
                 if (device_desired_data->update_state == DEVICE_TWIN_UPDATE_PARTIAL)
                 {
-                    current_version = (int64_t)_parse_json_twin_number(device_desired_data->cb_payload, "$version");
+                    bool allow_for_zero = true;
+                    current_version = (int64_t)_parse_json_twin_number(device_desired_data->cb_payload, "$version", !allow_for_zero);
                 }
                 else if (device_desired_data->update_state == DEVICE_TWIN_UPDATE_COMPLETE)
                 {
@@ -875,12 +909,13 @@ void dt_e2e_get_complete_desired_test(IOTHUB_CLIENT_TRANSPORT_PROVIDER protocol,
 
                 // Retrieve results.
                 // Format:: {"$version":[value]}
+                bool allow_for_zero = true;
                 switch (device_desired_data->update_state)
                 {
                 case DEVICE_TWIN_UPDATE_PARTIAL:
-                    integer_property = _parse_json_twin_number(device_desired_data->cb_payload, "integer_property");
+                    integer_property = _parse_json_twin_number(device_desired_data->cb_payload, "integer_property", allow_for_zero);
                     string_property = _parse_json_twin_char(device_desired_data->cb_payload, "string_property");
-                    integer_property_from_array = _parse_json_twin_number_from_array(device_desired_data->cb_payload, "array", 0);
+                    integer_property_from_array = _parse_json_twin_number_from_array(device_desired_data->cb_payload, "array", 0, allow_for_zero);
                     string_property_from_array = _parse_json_twin_char_from_array(device_desired_data->cb_payload, "array", 1);
                     break;
                 default: // invalid update state
@@ -972,12 +1007,13 @@ void dt_e2e_send_reported_test_svc_fault_ctrl_kill_Tcp(IOTHUB_CLIENT_TRANSPORT_P
     IOTHUB_PROVISIONED_DEVICE* device_to_use = IoTHubAccount_GetDevice(iothub_accountinfo_handle, account_auth_method);
     _setup_test(device_to_use, protocol);
 
-    DEVICE_REPORTED_DATA* device_reported_data = _device_reported_data_init(false);
+    bool is_cbor = true;
+    DEVICE_REPORTED_DATA* device_reported_data = _device_reported_data_init(!is_cbor);
 
     // Generate and send the reported payload to IoT Hub.
     char* buffer = _malloc_and_fill_reported_payload(device_reported_data->string_property, device_reported_data->integer_property);
     ASSERT_IS_NOT_NULL(buffer, "failed to allocate and prepare the payload for SendReportedState");
-    _send_reported_state(buffer, device_reported_data);
+    _send_reported_state(buffer, strlen(buffer), device_reported_data);
 
     ThreadAPI_Sleep(3000);
 
@@ -1031,7 +1067,7 @@ void dt_e2e_send_reported_test_svc_fault_ctrl_kill_Tcp(IOTHUB_CLIENT_TRANSPORT_P
     ThreadAPI_Sleep(3000);
 
     // Send reported payload to IoT Hub again.
-    _send_reported_state(buffer, device_reported_data);
+    _send_reported_state(buffer, strlen(buffer), device_reported_data);
 
     ThreadAPI_Sleep(3000);
 
@@ -1061,7 +1097,7 @@ void dt_e2e_send_reported_test_svc_fault_ctrl_kill_Tcp(IOTHUB_CLIENT_TRANSPORT_P
 
     // Cleanup
     free(buffer);
-    _device_reported_data_deinit(device_reported_data, false);
+    _device_reported_data_deinit(device_reported_data, !is_cbor);
     _breakdown_test();
 }
 
@@ -1238,7 +1274,8 @@ void dt_e2e_get_twin_async_test(IOTHUB_CLIENT_TRANSPORT_PROVIDER protocol, IOTHU
     IOTHUB_PROVISIONED_DEVICE* device_to_use = IoTHubAccount_GetDevice(iothub_accountinfo_handle, account_auth_method);
     _setup_test(device_to_use, protocol);
 
-    _request_twin_and_wait_for_response(device_to_use, DEVICE_TWIN_UPDATE_COMPLETE, false);
+    bool is_cbor = true;
+    _request_twin_and_wait_for_response(device_to_use, DEVICE_TWIN_UPDATE_COMPLETE, !is_cbor);
 
     // CLeanup
     _breakdown_test();
@@ -1254,7 +1291,8 @@ void dt_e2e_send_module_id_test(IOTHUB_CLIENT_TRANSPORT_PROVIDER protocol, IOTHU
 
     // Connect device to IoT Hub.
     // We do not use the returned device twin, which doesn't contain the device's model_id.
-    _request_twin_and_wait_for_response(device_to_use, DEVICE_TWIN_UPDATE_COMPLETE, false);
+    bool is_cbor = true;
+    _request_twin_and_wait_for_response(device_to_use, DEVICE_TWIN_UPDATE_COMPLETE, !is_cbor);
 
     // Connect service client to IoT Hub.
     const char* connection_string = IoTHubAccount_GetIoTHubConnString(iothub_accountinfo_handle);
@@ -1285,12 +1323,14 @@ void dt_e2e_send_reported_CBOR_test(IOTHUB_CLIENT_TRANSPORT_PROVIDER protocol, I
     OPTION_TWIN_CONTENT_TYPE_VALUE ct = OPTION_TWIN_CONTENT_TYPE_CBOR;
     _set_option(OPTION_TWIN_CONTENT_TYPE, &ct, "Cannot enable CBOR"); // Set prior to network I/O.
 
-    DEVICE_REPORTED_DATA* device_reported_data = _device_reported_data_init(true);
+    bool is_cbor = true;
+    DEVICE_REPORTED_DATA* device_reported_data = _device_reported_data_init(is_cbor);
 
     // Generate and send the reported payload to IoT Hub.
-    uint8_t* buffer = _malloc_and_fill_reported_payload_CBOR(device_reported_data->string_property, device_reported_data->integer_property);
+    size_t buffer_length;
+    uint8_t* buffer = _malloc_and_fill_reported_payload_CBOR(device_reported_data->string_property, device_reported_data->integer_property, &buffer_length);
     ASSERT_IS_NOT_NULL(buffer, "failed to allocate and prepare the payload for SendReportedState");
-    _send_reported_state((char*)buffer, device_reported_data);
+    _send_reported_state((char*)buffer, buffer_length, device_reported_data);
 
     // Receive IoT Hub response.
     int status_code = 400;
@@ -1341,7 +1381,8 @@ void dt_e2e_send_reported_CBOR_test(IOTHUB_CLIENT_TRANSPORT_PROVIDER protocol, I
         char* string_property = _parse_json_twin_char(twin_data, "properties.reported.string_property");
         ASSERT_ARE_EQUAL(char_ptr, device_reported_data->string_property, string_property, "string data retrieved differs from reported");
 
-        int integer_property = _parse_json_twin_number(twin_data, "properties.reported.integer_property");
+        bool allow_for_zero = true;
+        int integer_property = _parse_json_twin_number(twin_data, "properties.reported.integer_property", allow_for_zero);
         ASSERT_ARE_EQUAL(int, device_reported_data->integer_property, integer_property, "integer data retrieved differs from reported");
 
         (void) Unlock(device_reported_data->lock);
@@ -1355,7 +1396,7 @@ void dt_e2e_send_reported_CBOR_test(IOTHUB_CLIENT_TRANSPORT_PROVIDER protocol, I
 
     // Cleanup
     free(buffer);
-    _device_reported_data_deinit(device_reported_data, true);
+    _device_reported_data_deinit(device_reported_data, is_cbor);
     _breakdown_test();
 }
 
@@ -1396,7 +1437,8 @@ void dt_e2e_get_complete_desired_CBOR_test(IOTHUB_CLIENT_TRANSPORT_PROVIDER prot
     // Get twin initial desired version via service client.
     // Format:: {"properties": {"desired":{"$version":[value]},"reported":{"$version":[value]}}}
     char* twin_data = _service_client_get_twin(serviceclient_devicetwin_handle, device_to_use);
-    int64_t initial_version = (int64_t)_parse_json_twin_number(twin_data, "properties.desired.$version");
+    bool allow_for_zero = true;
+    int64_t initial_version = (int64_t)_parse_json_twin_number(twin_data, "properties.desired.$version", !allow_for_zero);
 
     // Update service client twin to prompt a desired property PATCH message to device.
     char* expected_desired_string = _generate_unique_CBOR_string();
@@ -1493,7 +1535,8 @@ void dt_e2e_get_twin_async_CBOR_test(IOTHUB_CLIENT_TRANSPORT_PROVIDER protocol, 
     OPTION_TWIN_CONTENT_TYPE_VALUE ct = OPTION_TWIN_CONTENT_TYPE_CBOR;
     _set_option(OPTION_TWIN_CONTENT_TYPE, &ct, "Cannot enable CBOR"); // Set prior to network I/O.
 
-    _request_twin_and_wait_for_response(device_to_use, DEVICE_TWIN_UPDATE_COMPLETE, true);
+    bool is_cbor = true;
+    _request_twin_and_wait_for_response(device_to_use, DEVICE_TWIN_UPDATE_COMPLETE, is_cbor);
 
     // Cleanup
     _breakdown_test();
