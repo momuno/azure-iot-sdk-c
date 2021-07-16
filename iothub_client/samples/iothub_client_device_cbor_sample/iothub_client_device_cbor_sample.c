@@ -119,10 +119,10 @@ static void send_telemetry(void);
 static void update_properties(CAR* new_car);
 static void send_reported_property();
 static void connection_status_callback(IOTHUB_CLIENT_CONNECTION_STATUS result, IOTHUB_CLIENT_CONNECTION_STATUS_REASON reason, void* user_context);
-static void get_twin_async_callback(DEVICE_TWIN_UPDATE_STATE update_state, const unsigned char* payload, size_t size, void* userContextCallback);
-static void twin_desired_properties_callback(DEVICE_TWIN_UPDATE_STATE update_state, const unsigned char* payload, size_t size, void* userContextCallback);
-static void twin_reported_properties_callback(int status_code, void* userContextCallback);
-static void send_telemetry_confirm_callback(IOTHUB_CLIENT_CONFIRMATION_RESULT result, void* userContextCallback);
+static void get_twin_async_callback(DEVICE_TWIN_UPDATE_STATE update_state, const unsigned char* payload, size_t size, void* user_context);
+static void twin_desired_properties_callback(DEVICE_TWIN_UPDATE_STATE update_state, const unsigned char* payload, size_t size, void* user_context);
+static void twin_reported_properties_callback(int status_code, void* user_context);
+static void send_telemetry_confirm_callback(IOTHUB_CLIENT_CONFIRMATION_RESULT result, void* user_context);
 static IOTHUBMESSAGE_DISPOSITION_RESULT receive_c2d_message_callback(IOTHUB_MESSAGE_HANDLE message, void* user_context);
 static bool parse_cbor_desired_property(DEVICE_TWIN_UPDATE_STATE update_state, const unsigned char* payload, CAR* out_car);
 static void build_cbor_reported_property(uint8_t* reported_property_payload, size_t reported_property_payload_size, size_t* out_reported_property_payload_length);
@@ -420,9 +420,9 @@ static void connection_status_callback(IOTHUB_CLIENT_CONNECTION_STATUS result, I
     }
 }
 
-static void get_twin_async_callback(DEVICE_TWIN_UPDATE_STATE update_state, const unsigned char* payload, size_t size, void* userContextCallback)
+static void get_twin_async_callback(DEVICE_TWIN_UPDATE_STATE update_state, const unsigned char* payload, size_t size, void* user_context)
 {
-    (void)userContextCallback;
+    (void)user_context;
 
     (void)printf("\nget_twin_async_callback payload: ");
     for (size_t i = 0; i < size; ++i)
@@ -444,9 +444,9 @@ static void get_twin_async_callback(DEVICE_TWIN_UPDATE_STATE update_state, const
     (void)printf("\n"); // Formatting
 }
 
-static void twin_desired_properties_callback(DEVICE_TWIN_UPDATE_STATE update_state, const unsigned char* payload, size_t size, void* userContextCallback)
+static void twin_desired_properties_callback(DEVICE_TWIN_UPDATE_STATE update_state, const unsigned char* payload, size_t size, void* user_context)
 {
-    (void)userContextCallback;
+    (void)user_context;
 
     (void)printf("\ntwin_desired_properties_callback payload: ");
     for (size_t i = 0; i < size; ++i)
@@ -467,15 +467,15 @@ static void twin_desired_properties_callback(DEVICE_TWIN_UPDATE_STATE update_sta
     (void)printf("\n"); // Formatting
 }
 
-static void twin_reported_properties_callback(int status_code, void* userContextCallback)
+static void twin_reported_properties_callback(int status_code, void* user_context)
 {
-    (void)userContextCallback;
+    (void)user_context;
     (void)printf("\ntwin_reported_properties_callback: Result status code: %d\n\n", status_code);
 }
 
-static void send_telemetry_confirm_callback(IOTHUB_CLIENT_CONFIRMATION_RESULT result, void* userContextCallback)
+static void send_telemetry_confirm_callback(IOTHUB_CLIENT_CONFIRMATION_RESULT result, void* user_context)
 {
-    uint64_t* id = (uint64_t*)userContextCallback;
+    uint64_t* id = (uint64_t*)user_context;
     (void)printf("\nsend_telemetry_confirm_callback: telemetry_message_id: %" PRIu64 ", Result %s\n\n", *id, MU_ENUM_TO_STRING(IOTHUB_CLIENT_CONFIRMATION_RESULT, result));
 }
 
