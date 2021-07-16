@@ -773,7 +773,8 @@ void dt_e2e_get_complete_desired_test(IOTHUB_CLIENT_TRANSPORT_PROVIDER protocol,
 
     while (now_time = time(NULL), difftime(now_time, begin_operation) < MAX_CLOUD_TRAVEL_TIME)
     {
-        if (Lock(device_desired_data->lock) != LOCK_OK)
+        LOCK_RESULT lock_result;
+        if ((lock_result = Lock(device_desired_data->lock)) != LOCK_OK)
         {
             ASSERT_FAIL("Lock failed");
         }
@@ -790,6 +791,8 @@ void dt_e2e_get_complete_desired_test(IOTHUB_CLIENT_TRANSPORT_PROVIDER protocol,
                 }
                 else if (device_desired_data->update_state == DEVICE_TWIN_UPDATE_COMPLETE)
                 {
+                    Unlock(device_desired_data->lock);
+                    ThreadAPI_Sleep(1000);
                     continue;
                 }
 
@@ -1619,7 +1622,8 @@ void dt_e2e_get_complete_desired_CBOR_test(IOTHUB_CLIENT_TRANSPORT_PROVIDER prot
 
     while (now_time = time(NULL), difftime(now_time, begin_operation) < MAX_CLOUD_TRAVEL_TIME)
     {
-        if (Lock(device_desired_data->lock) != LOCK_OK)
+        LOCK_RESULT lock_result;
+        if ((lock_result = Lock(device_desired_data->lock)) != LOCK_OK)
         {
             ASSERT_FAIL("Lock failed");
         }
@@ -1627,6 +1631,13 @@ void dt_e2e_get_complete_desired_CBOR_test(IOTHUB_CLIENT_TRANSPORT_PROVIDER prot
         {
             if ((device_desired_data->received_callback) && (device_desired_data->cb_payload != NULL))
             {
+                LogInfo("device_desired_data->cb_payload: ");
+                for (size_t i = 0; i < device_desired_data->cb_payload_size; ++i)
+                {
+                    (void)printf("%02X ", device_desired_data->cb_payload[i]);
+                }
+                (void)printf("\n");
+
                 int64_t current_version = 0;
                 if (device_desired_data->update_state == DEVICE_TWIN_UPDATE_PARTIAL)
                 {
@@ -1634,15 +1645,10 @@ void dt_e2e_get_complete_desired_CBOR_test(IOTHUB_CLIENT_TRANSPORT_PROVIDER prot
                 }
                 else if (device_desired_data->update_state == DEVICE_TWIN_UPDATE_COMPLETE)
                 {
+                    Unlock(device_desired_data->lock);
+                    ThreadAPI_Sleep(1000);
                     continue;
                 }
-
-                LogInfo("device_desired_data->cb_payload: ");
-                for (size_t i = 0; i < device_desired_data->cb_payload_size; ++i)
-                {
-                    (void)printf("%02X ", device_desired_data->cb_payload[i]);
-                }
-                (void)printf("\n");
 
                 if (current_version == initial_version)
                 {
@@ -1711,7 +1717,7 @@ void dt_e2e_get_complete_desired_CBOR_test(IOTHUB_CLIENT_TRANSPORT_PROVIDER prot
 
 static void _request_twin_and_wait_for_response_CBOR(IOTHUB_PROVISIONED_DEVICE* device_to_use, DEVICE_TWIN_UPDATE_STATE update_state)
 {
-/*
+
     bool callback_received;
     time_t begin_operation;
     time_t now_time;
@@ -1737,7 +1743,7 @@ static void _request_twin_and_wait_for_response_CBOR(IOTHUB_PROVISIONED_DEVICE* 
                 {
                     ASSERT_ARE_EQUAL(DEVICE_TWIN_UPDATE_STATE, device_desired_data->update_state, DEVICE_TWIN_UPDATE_COMPLETE);
                     ASSERT_IS_NOT_NULL(device_desired_data->cb_payload);
-                    ASSERT_IS_TRUE(strlen(device_desired_data->cb_payload) > 0);
+                    ASSERT_IS_TRUE(device_desired_data->cb_payload_size > 0);
                     callback_received = device_desired_data->received_callback;
                     Unlock(device_desired_data->lock);
                     break;
@@ -1782,8 +1788,8 @@ static void _request_twin_and_wait_for_response_CBOR(IOTHUB_PROVISIONED_DEVICE* 
                     // ASSERT_IS_TRUE(device_desired_data->twin_response->get_version(device_desired_data->twin_response, &response_version));
                     // ASSERT_IS_TRUE(response_version > 0);
                     ASSERT_IS_NOT_NULL(device_desired_data->cb_payload);
-                    ASSERT_IS_TRUE(strlen(device_desired_data->cb_payload) > 0);
-                    parsed_version = (int64_t)_parse_json_twin_number(device_desired_data->cb_payload, "desired.$version");
+                    ASSERT_IS_TRUE(device_desired_data->cb_payload_size > 0);
+                    parsed_version = (int64_t)_parse_last_cbor_byte_number(device_desired_data->cb_payload, device_desired_data->cb_payload_size);
                     // ASSERT_ARE_EQUAL(int64_t, parsed_version, response_version);
                     callback_received = device_desired_data->received_callback;
                     Unlock(device_desired_data->lock);
@@ -1825,8 +1831,8 @@ static void _request_twin_and_wait_for_response_CBOR(IOTHUB_PROVISIONED_DEVICE* 
                     // ASSERT_IS_TRUE(device_desired_data->twin_response->get_version(device_desired_data->twin_response, &response_version));
                     // ASSERT_IS_TRUE(response_version > 0);
                     ASSERT_IS_NOT_NULL(device_desired_data->cb_payload);
-                    ASSERT_IS_TRUE(strlen(device_desired_data->cb_payload) > 0);
-                    parsed_version = (int64_t)_parse_json_twin_number(device_desired_data->cb_payload, "desired.$version");
+                    ASSERT_IS_TRUE(device_desired_data->cb_payload_size > 0);
+                    parsed_version = (int64_t)_parse_last_cbor_byte_number(device_desired_data->cb_payload, device_desired_data->cb_payload_size);
                     // ASSERT_ARE_EQUAL(int64_t, parsed_version, response_version);
                     callback_received = device_desired_data->received_callback;
                     Unlock(device_desired_data->lock);
@@ -1906,8 +1912,8 @@ static void _request_twin_and_wait_for_response_CBOR(IOTHUB_PROVISIONED_DEVICE* 
                     // ASSERT_IS_TRUE(device_desired_data->twin_response->get_version(device_desired_data->twin_response, &response_version));
                     // ASSERT_IS_TRUE(response_version > 0);
                     ASSERT_IS_NOT_NULL(device_desired_data->cb_payload);
-                    ASSERT_IS_TRUE(strlen(device_desired_data->cb_payload) > 0);
-                    parsed_version = (int64_t)_parse_json_twin_number(device_desired_data->cb_payload, "reported.$version");
+                    ASSERT_IS_TRUE(device_desired_data->cb_payload_size > 0);
+                    parsed_version = (int64_t)_parse_last_cbor_byte_number(device_desired_data->cb_payload, device_desired_data->cb_payload_size);
                     // ASSERT_ARE_EQUAL(int64_t, parsed_version, response_version);
                     callback_received = device_desired_data->received_callback;
                     Unlock(device_desired_data->lock);
@@ -1949,8 +1955,8 @@ static void _request_twin_and_wait_for_response_CBOR(IOTHUB_PROVISIONED_DEVICE* 
                     // ASSERT_IS_TRUE(device_desired_data->twin_response->get_version(device_desired_data->twin_response, &response_version));
                     // ASSERT_IS_TRUE(response_version > 0);
                     ASSERT_IS_NOT_NULL(device_desired_data->cb_payload);
-                    ASSERT_IS_TRUE(strlen(device_desired_data->cb_payload) > 0);
-                    parsed_version = (int64_t)_parse_json_twin_number(device_desired_data->cb_payload, "reported.$version");
+                    ASSERT_IS_TRUE(device_desired_data->cb_payload_size > 0);
+                    parsed_version = (int64_t)_parse_last_cbor_byte_number(device_desired_data->cb_payload, device_desired_data->cb_payload_size);
                     // ASSERT_ARE_EQUAL(int64_t, parsed_version, response_version);
                     callback_received = device_desired_data->received_callback;
                     Unlock(device_desired_data->lock);
@@ -2008,29 +2014,31 @@ static void _request_twin_and_wait_for_response_CBOR(IOTHUB_PROVISIONED_DEVICE* 
 
     // Cleanup.
     _device_desired_data_deinit(device_desired_data);
-*/
+
 }
 
 void dt_e2e_get_twin_async_CBOR_test(IOTHUB_CLIENT_TRANSPORT_PROVIDER protocol, IOTHUB_ACCOUNT_AUTH_METHOD account_auth_method)
 {
-    /*
     IOTHUB_PROVISIONED_DEVICE* device_to_use = IoTHubAccount_GetDevice(iothub_accountinfo_handle, account_auth_method);
     _setup_test(device_to_use, protocol);
 
-    _request_twin_and_wait_for_response(device_to_use, DEVICE_TWIN_UPDATE_COMPLETE);
+    OPTION_TWIN_CONTENT_TYPE_VALUE ct = OPTION_TWIN_CONTENT_TYPE_CBOR;
+    _set_option(OPTION_TWIN_CONTENT_TYPE, &ct, "Cannot enable CBOR"); // Set prior to network I/O.
+
+    _request_twin_and_wait_for_response_CBOR(device_to_use, DEVICE_TWIN_UPDATE_COMPLETE);
 
     _breakdown_test();
-    */
 }
 
 void dt_e2e_get_twin_section_async_CBOR_test(IOTHUB_CLIENT_TRANSPORT_PROVIDER protocol, IOTHUB_ACCOUNT_AUTH_METHOD account_auth_method)
 {
-    /*
     IOTHUB_PROVISIONED_DEVICE* device_to_use = IoTHubAccount_GetDevice(iothub_accountinfo_handle, account_auth_method);
     _setup_test(device_to_use, protocol);
 
-    _request_twin_and_wait_for_response(device_to_use, DEVICE_TWIN_UPDATE_PARTIAL);
+    OPTION_TWIN_CONTENT_TYPE_VALUE ct = OPTION_TWIN_CONTENT_TYPE_CBOR;
+    _set_option(OPTION_TWIN_CONTENT_TYPE, &ct, "Cannot enable CBOR"); // Set prior to network I/O.
+
+    _request_twin_and_wait_for_response_CBOR(device_to_use, DEVICE_TWIN_UPDATE_PARTIAL);
 
     _breakdown_test();
-    */
 }

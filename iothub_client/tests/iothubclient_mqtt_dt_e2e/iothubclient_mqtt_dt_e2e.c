@@ -46,6 +46,26 @@ TEST_FUNCTION(IoTHub_MQTT_GetTwinSectionAsync_e2e_sas)
     dt_e2e_get_twin_section_async_test(MQTT_Protocol, IOTHUB_ACCOUNT_AUTH_CONNSTRING);
 }
 
+TEST_FUNCTION(IoTHub_MQTT_GetFullDesired_CBOR_e2e_sas)
+{
+    dt_e2e_get_complete_desired_CBOR_test(MQTT_Protocol, IOTHUB_ACCOUNT_AUTH_CONNSTRING);
+}
+
+TEST_FUNCTION(IoTHub_MQTT_SendReported_CBOR_e2e_sas)
+{
+    dt_e2e_send_reported_CBOR_test(MQTT_Protocol, IOTHUB_ACCOUNT_AUTH_CONNSTRING);
+}
+
+TEST_FUNCTION(IoTHub_MQTT_GetTwinAsync_CBOR_e2e_sas)
+{
+    dt_e2e_get_twin_async_CBOR_test(MQTT_Protocol, IOTHUB_ACCOUNT_AUTH_CONNSTRING);
+}
+
+TEST_FUNCTION(IoTHub_MQTT_GetTwinSectionAsync_CBOR_e2e_sas)
+{
+    dt_e2e_get_twin_section_async_CBOR_test(MQTT_Protocol, IOTHUB_ACCOUNT_AUTH_CONNSTRING);
+}
+
 #ifndef __APPLE__
 TEST_FUNCTION(IoTHub_MQTT_SendModelId_e2e_x509)
 {
@@ -72,6 +92,25 @@ TEST_FUNCTION(IoTHub_MQTT_GetTwinSectionAsync_e2e_x509)
     dt_e2e_get_twin_section_async_test(MQTT_Protocol, IOTHUB_ACCOUNT_AUTH_X509);
 }
 
+TEST_FUNCTION(IoTHub_MQTT_GetFullDesired_CBOR_e2e_x509)
+{
+    dt_e2e_get_complete_desired_CBOR_test(MQTT_Protocol, IOTHUB_ACCOUNT_AUTH_X509);
+}
+
+TEST_FUNCTION(IoTHub_MQTT_SendReported_CBOR_e2e_x509)
+{
+    dt_e2e_send_reported_CBOR_test(MQTT_Protocol, IOTHUB_ACCOUNT_AUTH_X509);
+}
+
+TEST_FUNCTION(IoTHub_MQTT_GetTwinAsync_CBOR_e2e_x509)
+{
+    dt_e2e_get_twin_async_CBOR_test(MQTT_Protocol, IOTHUB_ACCOUNT_AUTH_X509);
+}
+
+TEST_FUNCTION(IoTHub_MQTT_GetTwinSectionAsync_CBOR_e2e_x509)
+{
+    dt_e2e_get_twin_section_async_CBOR_test(MQTT_Protocol, IOTHUB_ACCOUNT_AUTH_X509);
+}
 #endif
 
 #ifndef USE_WOLFSSL // Wolf doesn't run web socket tests
@@ -101,6 +140,26 @@ TEST_FUNCTION(IoTHub_MQTT_WS_GetTwinAsync_e2e_sas)
 TEST_FUNCTION(IoTHub_MQTT_WS_GetTwinSectionAsync_e2e_sas)
 {
     dt_e2e_get_twin_section_async_test(MQTT_WebSocket_Protocol, IOTHUB_ACCOUNT_AUTH_CONNSTRING);
+}
+
+TEST_FUNCTION(IoTHub_MQTT_WS_GetFullDesired_CBOR_e2e_sas)
+{
+    dt_e2e_get_complete_desired_CBOR_test(MQTT_WebSocket_Protocol, IOTHUB_ACCOUNT_AUTH_CONNSTRING);
+}
+
+TEST_FUNCTION(IoTHub_MQTT_WS_SendReported_CBOR_e2e_sas)
+{
+    dt_e2e_send_reported_CBOR_test(MQTT_WebSocket_Protocol, IOTHUB_ACCOUNT_AUTH_CONNSTRING);
+}
+
+TEST_FUNCTION(IoTHub_MQTT_WS_GetTwinAsync_CBOR_e2e_sas)
+{
+    dt_e2e_get_twin_async_CBOR_test(MQTT_WebSocket_Protocol, IOTHUB_ACCOUNT_AUTH_CONNSTRING);
+}
+
+TEST_FUNCTION(IoTHub_MQTT_WS_GetTwinSectionAsync_CBOR_e2e_sas)
+{
+    dt_e2e_get_twin_section_async_CBOR_test(MQTT_WebSocket_Protocol, IOTHUB_ACCOUNT_AUTH_CONNSTRING);
 }
 
 #ifndef __APPLE__
